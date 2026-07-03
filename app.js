@@ -232,8 +232,9 @@ function renderStudy() {
     <section class="screen">
       <div class="study-top">
         <button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>
+        <button class="study-nav-button" type="button" data-action="study-prev" ${studyIndex === 0 ? "disabled" : ""}>이전</button>
         <span class="progress-pill">${studyIndex + 1} / ${selectedMeridian.points.length}</span>
-        <span></span>
+        <button class="study-nav-button" type="button" data-action="study-next" ${studyIndex === selectedMeridian.points.length - 1 ? "disabled" : ""}>다음</button>
       </div>
 
       <div class="point-title">
@@ -247,11 +248,6 @@ function renderStudy() {
 
       ${infoBlock("위치", point.location)}
       ${infoBlock("취혈요령", point.technique)}
-
-      <div class="pager">
-        <button class="pager-button secondary" type="button" data-action="study-prev" ${studyIndex === 0 ? "disabled" : ""}>이전</button>
-        <button class="pager-button" type="button" data-action="study-next" ${studyIndex === selectedMeridian.points.length - 1 ? "disabled" : ""}>다음</button>
-      </div>
     </section>
   `;
 }

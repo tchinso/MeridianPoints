@@ -306,9 +306,16 @@ p {
 .study-top,
 .quiz-top {
   display: grid;
-  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
+}
+
+.study-top {
+  grid-template-columns: auto minmax(52px, 1fr) auto minmax(52px, 1fr);
+}
+
+.quiz-top {
+  grid-template-columns: auto 1fr auto;
 }
 
 .progress-pill {
@@ -321,6 +328,24 @@ p {
   border-radius: 999px;
   font-size: 0.85rem;
   font-weight: 800;
+}
+
+.study-nav-button {
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--surface);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.study-nav-button:disabled {
+  cursor: default;
+  color: #9aa39e;
+  background: #e5e9e5;
 }
 
 .point-title {
