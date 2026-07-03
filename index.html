@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>경혈 학습</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="icon-button" id="searchButton" type="button" aria-label="경혈 검색">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m21 21-4.2-4.2m1.2-5.3a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+        </svg>
+      </button>
+      <h1>경혈 학습</h1>
+      <button class="text-button compact" id="homeButton" type="button">처음</button>
+    </header>
+
+    <main id="app" class="app-shell" aria-live="polite">
+      <section class="loading-screen">
+        <div class="loader" aria-hidden="true"></div>
+        <p>불러오는 중</p>
+      </section>
+    </main>
+
+    <div class="sheet" id="searchSheet" hidden>
+      <div class="sheet-backdrop" data-close-search></div>
+      <section class="search-panel" role="dialog" aria-modal="true" aria-labelledby="searchTitle">
+        <div class="search-header">
+          <h2 id="searchTitle">경혈 검색</h2>
+          <button class="icon-button" type="button" data-close-search aria-label="검색 닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <label class="search-box">
+          <span>이름</span>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="예: 합곡" />
+        </label>
+        <div class="search-results" id="searchResults"></div>
+      </section>
+    </div>
+  </body>
+</html>
