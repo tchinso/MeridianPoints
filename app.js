@@ -1,5 +1,6 @@
 const DATA_URL = "assets/json/meridians.json";
 const QUESTION_LIMITS = [10, 25, 50];
+const IMAGE_PRELOAD_LOOKAHEAD = 2;
 
 const app = document.querySelector("#app");
 const searchButton = document.querySelector("#searchButton");
@@ -14,9 +15,10 @@ let meridianByCode = new Map();
 let pointById = new Map();
 let selectedMeridian = null;
 let studyIndex = 0;
-let questionLimit = 50;
+let questionLimit = 25;
 let activeQuiz = null;
 let feedbackTimer = null;
+const imagePreloadCache = new Map();
 
 init();
 
@@ -250,6 +252,8 @@ function renderStudy() {
       ${infoBlock("취혈요령", point.technique)}
     </section>
   `;
+
+  preloadUpcomingStudyImages(studyIndex + 1);
 }
 
 function infoBlock(title, items) {
@@ -341,8 +345,9 @@ function createQuizConfig(menuId) {
       optionScope: cumulativePoints,
       ordered: false,
       count: questionLimit,
-      sameChoices: 3,
-      otherChoices: 2,
+      sameChoices: 2,
+      otherChoices: 3,
+      singleOtherMeridian: true,
     },
   };
 
@@ -389,13 +394,33 @@ function buildChoices(answer, config) {
     addFromPool(sameFallback, config.sameChoices - sameAdded);
   }
 
-  const otherAdded = addFromPool(otherScope, config.otherChoices);
+  const otherAdded = config.singleOtherMeridian
+    ? addFromSingleOtherMeridian(otherScope, otherFallback, config.otherChoices)
+    : addFromPool(otherScope, config.otherChoices);
   if (otherAdded < config.otherChoices) {
     addFromPool(otherFallback, config.otherChoices - otherAdded);
   }
 
   if (selected.size < desiredCount) {
     addFromPool(allPoints, desiredCount - selected.size);
+  }
+
+  function addFromSingleOtherMeridian(primaryPool, fallbackPool, count) {
+    const group = chooseSingleMeridianGroup(primaryPool, count) || chooseSingleMeridianGroup(fallbackPool, count);
+    return group ? addFromPool(group, count) : 0;
+  }
+
+  function chooseSingleMeridianGroup(pool, count) {
+    const groupsByCode = new Map();
+    for (const point of pool) {
+      const group = groupsByCode.get(point.code) || [];
+      group.push(point);
+      groupsByCode.set(point.code, group);
+    }
+
+    const groups = [...groupsByCode.values()];
+    const enoughGroups = groups.filter((group) => group.length >= count);
+    return shuffle(enoughGroups.length ? enoughGroups : groups)[0] || null;
   }
 
   return shuffle([...selected.values()]);
@@ -434,6 +459,63 @@ function renderQuiz() {
       ${renderFeedback(answer)}
     </section>
   `;
+
+  preloadUpcomingQuizImages(activeQuiz.index + 1);
+}
+
+function preloadUpcomingStudyImages(startIndex) {
+  const sources = [];
+
+  for (let offset = 0; offset < IMAGE_PRELOAD_LOOKAHEAD; offset += 1) {
+    const point = selectedMeridian?.points[startIndex + offset];
+    if (point) sources.push(point.image);
+  }
+
+  preloadImages(sources);
+}
+
+function preloadUpcomingQuizImages(startIndex) {
+  if (!activeQuiz) return;
+
+  const sources = [];
+
+  for (let offset = 0; offset < IMAGE_PRELOAD_LOOKAHEAD; offset += 1) {
+    const question = activeQuiz.questions[startIndex + offset];
+    if (!question) continue;
+
+    const answer = pointById.get(question.answerId);
+
+    if (activeQuiz.promptType === "image" && answer) {
+      sources.push(answer.image);
+    }
+
+    if (activeQuiz.choiceType === "image") {
+      for (const id of question.choices) {
+        const point = pointById.get(id);
+        if (point) sources.push(point.image);
+      }
+    }
+  }
+
+  preloadImages(sources);
+}
+
+function preloadImages(sources) {
+  for (const source of sources) {
+    preloadImage(source);
+  }
+}
+
+function preloadImage(source) {
+  const src = String(source || "").trim();
+  if (!src || imagePreloadCache.has(src)) return;
+
+  const image = new Image();
+  image.decoding = "async";
+  image.onload = () => imagePreloadCache.set(src, true);
+  image.onerror = () => imagePreloadCache.delete(src);
+  imagePreloadCache.set(src, image);
+  image.src = src;
 }
 
 function renderQuestionPrompt(answer) {
