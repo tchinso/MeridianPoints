@@ -1,6 +1,14 @@
 const DATA_URL = "assets/json/meridians.json";
 const QUESTION_LIMITS = [10, 25, 50];
 const IMAGE_PRELOAD_LOOKAHEAD = 6;
+const SPECIAL_UNIT_TITLE = "요혈·오수혈·오행혈";
+const SPECIAL_QUIZ_PREFIX = "special-quiz-";
+const SPECIAL_CUMULATIVE_PREFIX = "special-cumulative-";
+const SPECIAL_CHOICE_FALLBACKS = {
+  "key-type": ["수혈", "모혈", "낙혈", "극혈"],
+  "five-shu-category": ["정혈", "형혈", "수혈", "경혈", "합혈"],
+  "five-phase-category": ["목혈", "화혈", "토혈", "금혈", "수혈"],
+};
 
 const app = document.querySelector("#app");
 const searchButton = document.querySelector("#searchButton");
@@ -14,7 +22,9 @@ let allPoints = [];
 let meridianByCode = new Map();
 let pointById = new Map();
 let selectedMeridian = null;
+let selectedSpecialUnit = false;
 let studyIndex = 0;
+let specialStudyIndex = 0;
 let questionLimit = 25;
 let activeQuiz = null;
 let feedbackTimer = null;
@@ -105,21 +115,45 @@ function handleAppClick(event) {
   const id = button.dataset.id;
 
   if (action === "select-meridian") {
+    selectedSpecialUnit = false;
     selectedMeridian = meridianByCode.get(code);
     renderMenu();
   }
 
+  if (action === "select-special-unit") {
+    selectedSpecialUnit = true;
+    selectedMeridian = null;
+    renderSpecialMenu();
+  }
+
+  if (action === "open-point") {
+    const point = pointById.get(id);
+    if (point) startStudy(point.code, point.id);
+  }
+
   if (action === "back-home") renderHome();
-  if (action === "back-menu") renderMenu();
+  if (action === "back-menu") {
+    if (selectedSpecialUnit) {
+      renderSpecialMenu();
+    } else {
+      renderMenu();
+    }
+  }
 
   if (action === "set-limit") {
     questionLimit = Number(button.dataset.count);
-    renderMenu();
+    if (selectedSpecialUnit) {
+      renderSpecialMenu();
+    } else {
+      renderMenu();
+    }
   }
 
   if (action === "start-menu") {
     if (menu === "study") {
       startStudy(selectedMeridian.code);
+    } else if (menu === "special-study") {
+      startSpecialStudy();
     } else {
       startQuiz(menu);
     }
@@ -133,6 +167,16 @@ function handleAppClick(event) {
   if (action === "study-next") {
     studyIndex = Math.min(selectedMeridian.points.length - 1, studyIndex + 1);
     renderStudy();
+  }
+
+  if (action === "special-study-prev") {
+    specialStudyIndex = Math.max(0, specialStudyIndex - 1);
+    renderSpecialStudy();
+  }
+
+  if (action === "special-study-next") {
+    specialStudyIndex = Math.min(getImportantLessons().length - 1, specialStudyIndex + 1);
+    renderSpecialStudy();
   }
 
   if (action === "answer") handleAnswer(id);
@@ -150,27 +194,51 @@ function renderHome() {
   clearFeedbackTimer();
   activeQuiz = null;
   selectedMeridian = null;
+  selectedSpecialUnit = false;
 
   app.innerHTML = `
     <section class="screen">
       <div class="screen-heading">
-        <p class="kicker">14개 단원</p>
+        <p class="kicker">${data.meridians.length + (hasSpecialUnit() ? 1 : 0)}개 단원</p>
         <h2>단원을 고르세요</h2>
       </div>
       <div class="unit-grid">
-        ${data.meridians
-          .map(
-            (meridian) => `
-              <button class="unit-card" type="button" data-action="select-meridian" data-code="${escapeHtml(meridian.code)}">
-                <strong>${escapeHtml(meridian.name)}</strong>
-                <span>${meridian.points.length}혈</span>
-              </button>
-            `,
-          )
-          .join("")}
+        ${renderHomeUnitCards()}
       </div>
     </section>
   `;
+}
+
+function renderHomeUnitCards() {
+  const cards = [];
+
+  for (const meridian of data.meridians) {
+    cards.push(`
+      <button class="unit-card" type="button" data-action="select-meridian" data-code="${escapeHtml(meridian.code)}">
+        <strong>${escapeHtml(meridian.name)}</strong>
+        <span>${meridian.points.length}혈</span>
+      </button>
+    `);
+  }
+
+  if (hasSpecialUnit()) {
+    cards.push(`
+      <button class="unit-card special-unit-card" type="button" data-action="select-special-unit">
+        <strong>${SPECIAL_UNIT_TITLE}</strong>
+        <span>${getImportantLessons().length}개 묶음</span>
+      </button>
+    `);
+  }
+
+  return cards.join("");
+}
+
+function hasSpecialUnit() {
+  return getImportantLessons().length > 0;
+}
+
+function getImportantLessons() {
+  return data?.important?.lessons || [];
 }
 
 function renderMenu() {
@@ -224,6 +292,76 @@ function renderMenu() {
   `;
 }
 
+function renderSpecialMenu() {
+  clearFeedbackTimer();
+  activeQuiz = null;
+  selectedSpecialUnit = true;
+
+  const lessons = getImportantLessons();
+  if (!lessons.length) {
+    renderHome();
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="screen">
+      <div class="study-top">
+        <button class="text-button secondary" type="button" data-action="back-home">단원</button>
+        <span class="progress-pill">${lessons.length}묶음</span>
+        <span></span>
+      </div>
+
+      <div class="screen-heading">
+        <p class="kicker">선택 단원</p>
+        <h2>${SPECIAL_UNIT_TITLE}</h2>
+      </div>
+
+      <div class="segment" aria-label="문제 수">
+        <span class="segment-label">문제 수</span>
+        <div class="segment-buttons">
+          ${QUESTION_LIMITS.map(
+            (count) => `
+              <button
+                class="segment-button ${questionLimit === count ? "is-active" : ""}"
+                type="button"
+                data-action="set-limit"
+                data-count="${count}"
+              >
+                ${count}문제
+              </button>
+            `,
+          ).join("")}
+        </div>
+      </div>
+
+      <div class="menu-list">
+        ${menuCard("special-study", "학습(잘게 보기)", "요혈부터 오행혈까지 8묶음")}
+        ${renderSpecialQuizCards(lessons)}
+      </div>
+    </section>
+  `;
+}
+
+function renderSpecialQuizCards(lessons) {
+  return lessons
+    .map((lesson, index) => {
+      const shortTitle = lesson.title.replace(/^.+?:\s*/, "");
+      const cumulativeCount = lessons
+        .slice(0, index + 1)
+        .reduce((sum, item) => sum + item.quizItems.length, 0);
+
+      return `
+        ${menuCard(`${SPECIAL_QUIZ_PREFIX}${lesson.id}`, `퀴즈 ${index + 1}: ${shortTitle}`, `${Math.min(questionLimit, lesson.quizItems.length)}문제`)}
+        ${menuCard(
+          `${SPECIAL_CUMULATIVE_PREFIX}${lesson.id}`,
+          `누적 퀴즈 1~${index + 1}`,
+          `${Math.min(questionLimit, cumulativeCount)}문제`,
+        )}
+      `;
+    })
+    .join("");
+}
+
 function menuCard(id, title, detail) {
   return `
     <button class="menu-card" type="button" data-action="start-menu" data-menu="${id}">
@@ -236,6 +374,7 @@ function menuCard(id, title, detail) {
 function startStudy(code, pointId = null) {
   clearFeedbackTimer();
   activeQuiz = null;
+  selectedSpecialUnit = false;
   selectedMeridian = meridianByCode.get(code);
   studyIndex = pointId
     ? Math.max(0, selectedMeridian.points.findIndex((point) => point.id === pointId))
@@ -262,6 +401,7 @@ function renderStudy() {
       <div class="point-title">
         <p class="kicker">${escapeHtml(selectedMeridian.name)}</p>
         <h2>${escapeHtml(point.name)}</h2>
+        ${renderPointAliases(point)}
       </div>
 
       <figure class="image-panel">
@@ -270,10 +410,58 @@ function renderStudy() {
 
       ${infoBlock("위치", point.location)}
       ${infoBlock("취혈요령", point.technique)}
+      ${studyIndex === selectedMeridian.points.length - 1 ? renderMeridianImportantTip(selectedMeridian) : ""}
     </section>
   `;
 
   preloadUpcomingStudyImages(studyIndex + 1);
+}
+
+function renderPointAliases(point) {
+  if (!point.aliases?.length) return "";
+  return `<p class="point-aliases">별칭: ${escapeHtml(point.aliases.join(", "))}</p>`;
+}
+
+function renderMeridianImportantTip(meridian) {
+  const keyPoint = data.important?.keyPoints?.find((entry) => entry.code === meridian.code);
+  const five = data.important?.fiveShuAndFivePhase?.find((entry) => entry.code === meridian.code);
+  const rows = [];
+
+  if (keyPoint?.items?.length) {
+    rows.push(`<p><strong>요혈</strong> ${keyPoint.items.map(formatImportantTipItem).join(" / ")}</p>`);
+  }
+
+  if (five?.fiveShu?.length) {
+    rows.push(`<p><strong>오수혈</strong> ${five.fiveShu.map(formatCategoryTipItem).join(" / ")}</p>`);
+  }
+
+  if (five?.fivePhase?.length) {
+    rows.push(`<p><strong>오행혈</strong> ${five.fivePhase.map(formatCategoryTipItem).join(" / ")}</p>`);
+  }
+
+  if (!rows.length) return "";
+
+  return `
+    <section class="tip-block">
+      <h3>${SPECIAL_UNIT_TITLE} 팁</h3>
+      ${rows.join("")}
+    </section>
+  `;
+}
+
+function formatImportantTipItem(item) {
+  const related = item.relatedMeridian && (item.pointCode === "CV" || item.pointCode === "GV")
+    ? `${item.relatedMeridian} `
+    : "";
+  return `${related}${item.type} ${formatPointName(item)}`;
+}
+
+function formatCategoryTipItem(item) {
+  return `${formatPointName(item)}(${item.category})`;
+}
+
+function formatPointName(item) {
+  return item.pointId ? `${item.pointName} ${item.pointId}` : item.pointName;
 }
 
 function infoBlock(title, items) {
@@ -289,13 +477,101 @@ function infoBlock(title, items) {
   `;
 }
 
+function startSpecialStudy(index = 0) {
+  clearFeedbackTimer();
+  activeQuiz = null;
+  selectedSpecialUnit = true;
+  selectedMeridian = null;
+  specialStudyIndex = Math.max(0, Math.min(index, getImportantLessons().length - 1));
+  renderSpecialStudy();
+}
+
+function renderSpecialStudy() {
+  const lessons = getImportantLessons();
+  const lesson = lessons[specialStudyIndex];
+
+  if (!lesson) {
+    renderSpecialMenu();
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="screen">
+      <div class="study-top">
+        <button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>
+        <button class="study-nav-button" type="button" data-action="special-study-prev" ${specialStudyIndex === 0 ? "disabled" : ""}>이전</button>
+        <span class="progress-pill">${specialStudyIndex + 1} / ${lessons.length}</span>
+        <button class="study-nav-button" type="button" data-action="special-study-next" ${specialStudyIndex === lessons.length - 1 ? "disabled" : ""}>다음</button>
+      </div>
+
+      <div class="screen-heading">
+        <p class="kicker">${SPECIAL_UNIT_TITLE}</p>
+        <h2>${escapeHtml(lesson.title)}</h2>
+        <p class="lesson-intro">${escapeHtml(lesson.intro)}</p>
+      </div>
+
+      ${renderSpecialLessonRows(lesson)}
+
+      <div class="lesson-actions">
+        <button class="result-action secondary" type="button" data-action="start-menu" data-menu="${SPECIAL_QUIZ_PREFIX}${escapeHtml(lesson.id)}">이 묶음 퀴즈</button>
+        <button class="result-action" type="button" data-action="start-menu" data-menu="${SPECIAL_CUMULATIVE_PREFIX}${escapeHtml(lesson.id)}">누적 퀴즈</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderSpecialLessonRows(lesson) {
+  return lesson.rows
+    .map(
+      (row) => `
+        <section class="info-block lesson-row">
+          <h3>${escapeHtml(row.label)}</h3>
+          <dl class="fact-list">
+            ${row.values
+              .map(
+                (value) => `
+                  <div class="fact-item">
+                    <dt>${escapeHtml(value.label)}</dt>
+                    <dd>
+                      ${renderSpecialPointValue(value)}
+                      ${value.detail ? `<span>${escapeHtml(value.detail)}</span>` : ""}
+                    </dd>
+                  </div>
+                `,
+              )
+              .join("")}
+          </dl>
+        </section>
+      `,
+    )
+    .join("");
+}
+
+function renderSpecialPointValue(value) {
+  if (!value.pointId) {
+    return `<strong>${escapeHtml(value.value)}</strong>`;
+  }
+
+  return `
+    <button
+      class="point-link"
+      type="button"
+      data-action="open-point"
+      data-id="${escapeHtml(value.pointId)}"
+    >
+      ${escapeHtml(value.value)}
+    </button>
+  `;
+}
+
 function startQuiz(menuId) {
   clearFeedbackTimer();
   const config = createQuizConfig(menuId);
+  if (!config) return;
   activeQuiz = {
     ...config,
     menuId,
-    questions: buildQuestions(config),
+    questions: config.kind === "special" ? buildSpecialQuestions(config) : buildQuestions(config),
     index: 0,
     correct: 0,
     wrong: [],
@@ -307,6 +583,12 @@ function startQuiz(menuId) {
 }
 
 function createQuizConfig(menuId) {
+  if (menuId.startsWith(SPECIAL_QUIZ_PREFIX) || menuId.startsWith(SPECIAL_CUMULATIVE_PREFIX)) {
+    return createSpecialQuizConfig(menuId);
+  }
+
+  if (!selectedMeridian) return null;
+
   const unitPoints = selectedMeridian.points;
   const cumulativePoints = data.meridians
     .filter((meridian) => meridian.order <= selectedMeridian.order)
@@ -374,6 +656,31 @@ function createQuizConfig(menuId) {
   return configs[menuId];
 }
 
+function createSpecialQuizConfig(menuId) {
+  const lessons = getImportantLessons();
+  const cumulative = menuId.startsWith(SPECIAL_CUMULATIVE_PREFIX);
+  const lessonId = menuId.replace(cumulative ? SPECIAL_CUMULATIVE_PREFIX : SPECIAL_QUIZ_PREFIX, "");
+  const lessonIndex = lessons.findIndex((lesson) => lesson.id === lessonId);
+  const lesson = lessons[lessonIndex];
+
+  if (!lesson) {
+    renderSpecialMenu();
+    return null;
+  }
+
+  const targetLessons = cumulative ? lessons.slice(0, lessonIndex + 1) : [lesson];
+  const questionPool = targetLessons.flatMap((item) => item.quizItems);
+
+  return {
+    kind: "special",
+    title: cumulative ? `누적 퀴즈 1~${lessonIndex + 1}` : `${lesson.title} 퀴즈`,
+    unitTitle: SPECIAL_UNIT_TITLE,
+    questionPool,
+    optionScope: cumulative ? data.important.quizItems : questionPool,
+    count: Math.min(questionLimit, questionPool.length),
+  };
+}
+
 function buildQuestions(config) {
   const answers = config.ordered
     ? [...config.questionPool]
@@ -383,6 +690,45 @@ function buildQuestions(config) {
     answerId: answer.id,
     choices: buildChoices(answer, config).map((point) => point.id),
   }));
+}
+
+function buildSpecialQuestions(config) {
+  const answers = takeRepeatedShuffle(config.questionPool, config.count);
+
+  return answers.map((answer) => ({
+    prompt: answer.prompt,
+    detail: answer.detail,
+    answer: answer.answer,
+    answerGroup: answer.answerGroup,
+    choices: buildSpecialChoices(answer, config),
+  }));
+}
+
+function buildSpecialChoices(answer, config) {
+  const primaryOptions = config.optionScope || config.questionPool;
+  const fallbackOptions = data.important?.quizItems || [];
+  const fallbackTexts = SPECIAL_CHOICE_FALLBACKS[answer.answerGroup] || [];
+  const allAnswers = [...primaryOptions, ...fallbackOptions]
+    .filter((item) => item.answerGroup === answer.answerGroup)
+    .map((item) => item.answer);
+  const uniqueAnswerCount = new Set([...allAnswers, ...fallbackTexts].map(normalizeText)).size;
+  const desiredCount = Math.max(1, Math.min(4, uniqueAnswerCount));
+  const selected = new Map([[normalizeText(answer.answer), answer.answer]]);
+
+  const addAnswers = (answers) => {
+    for (const choice of shuffle(answers)) {
+      if (selected.size >= desiredCount) break;
+      const normalized = normalizeText(choice);
+      if (!normalized || selected.has(normalized)) continue;
+      selected.set(normalized, choice);
+    }
+  };
+
+  addAnswers(primaryOptions.filter((item) => item.answerGroup === answer.answerGroup).map((item) => item.answer));
+  addAnswers(fallbackOptions.filter((item) => item.answerGroup === answer.answerGroup).map((item) => item.answer));
+  addAnswers(fallbackTexts);
+
+  return shuffle([...selected.values()]);
 }
 
 function buildChoices(answer, config) {
@@ -451,7 +797,11 @@ function buildChoices(answer, config) {
 
 function renderQuiz() {
   if (!activeQuiz) {
-    renderMenu();
+    if (selectedSpecialUnit) {
+      renderSpecialMenu();
+    } else {
+      renderMenu();
+    }
     return;
   }
 
@@ -461,6 +811,12 @@ function renderQuiz() {
   }
 
   const question = activeQuiz.questions[activeQuiz.index];
+
+  if (activeQuiz.kind === "special") {
+    renderSpecialQuizQuestion(question);
+    return;
+  }
+
   const answer = pointById.get(question.answerId);
   const choices = question.choices.map((id) => pointById.get(id));
 
@@ -486,6 +842,58 @@ function renderQuiz() {
   preloadUpcomingQuizImages(activeQuiz.index + 1);
 }
 
+function renderSpecialQuizQuestion(question) {
+  app.innerHTML = `
+    <section class="screen quiz-card">
+      <div class="quiz-top">
+        <button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>
+        <span class="progress-pill">${activeQuiz.index + 1} / ${activeQuiz.questions.length}</span>
+        <span></span>
+      </div>
+
+      <div class="screen-heading">
+        <p class="kicker">${escapeHtml(activeQuiz.unitTitle)}</p>
+        <h2>${escapeHtml(activeQuiz.title)}</h2>
+      </div>
+
+      ${renderSpecialQuestionPrompt(question)}
+      ${renderSpecialChoices(question)}
+      ${renderSpecialFeedback(question)}
+    </section>
+  `;
+}
+
+function renderSpecialQuestionPrompt(question) {
+  return `
+    <div class="question-name special-question">
+      ${question.detail ? `<span>${escapeHtml(question.detail)}</span>` : ""}
+      <strong>${escapeHtml(question.prompt)}</strong>
+    </div>
+  `;
+}
+
+function renderSpecialChoices(question) {
+  return `
+    <div class="choice-grid names">
+      ${question.choices
+        .map(
+          (choice) => `
+            <button
+              class="answer-button ${getSpecialChoiceFeedbackClass(choice, question)}"
+              type="button"
+              data-action="answer"
+              data-id="${escapeHtml(choice)}"
+              ${activeQuiz.locked ? "disabled" : ""}
+            >
+              ${escapeHtml(choice)}
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function preloadUpcomingStudyImages(startIndex) {
   const sources = [];
 
@@ -499,6 +907,7 @@ function preloadUpcomingStudyImages(startIndex) {
 
 function preloadUpcomingQuizImages(startIndex) {
   if (!activeQuiz) return;
+  if (activeQuiz.kind === "special") return;
 
   const sources = [];
 
@@ -648,8 +1057,20 @@ function closeImagePreview() {
 function getChoiceFeedbackClass(choice, answer) {
   if (!activeQuiz.feedback) return "";
 
-  const isAnswer = choice.id === answer.id;
+  const isAnswer = isPointChoiceCorrect(choice, answer);
   const isSelected = choice.id === activeQuiz.feedback.selectedId;
+
+  if (activeQuiz.feedback.correct && isAnswer) return "is-correct";
+  if (!activeQuiz.feedback.correct && isAnswer) return "correct-reveal";
+  if (!activeQuiz.feedback.correct && isSelected) return "is-wrong";
+  return "";
+}
+
+function getSpecialChoiceFeedbackClass(choice, question) {
+  if (!activeQuiz.feedback) return "";
+
+  const isAnswer = normalizeText(choice) === normalizeText(question.answer);
+  const isSelected = normalizeText(choice) === normalizeText(activeQuiz.feedback.selectedId);
 
   if (activeQuiz.feedback.correct && isAnswer) return "is-correct";
   if (!activeQuiz.feedback.correct && isAnswer) return "correct-reveal";
@@ -667,11 +1088,23 @@ function renderFeedback(answer) {
   return `<div class="feedback is-wrong">정답: ${escapeHtml(answer.name)}</div>`;
 }
 
+function renderSpecialFeedback(question) {
+  if (!activeQuiz.feedback) return "";
+
+  if (activeQuiz.feedback.correct) {
+    return `<div class="feedback">정답입니다</div>`;
+  }
+
+  return `<div class="feedback is-wrong">정답: ${escapeHtml(question.answer)}</div>`;
+}
+
 function handleAnswer(selectedId) {
   if (!activeQuiz || activeQuiz.locked) return;
 
   const question = activeQuiz.questions[activeQuiz.index];
-  const correct = selectedId === question.answerId;
+  const correct = activeQuiz.kind === "special"
+    ? normalizeText(selectedId) === normalizeText(question.answer)
+    : isPointAnswerCorrect(selectedId, question);
 
   activeQuiz.locked = true;
   activeQuiz.feedback = { selectedId, correct };
@@ -679,12 +1112,22 @@ function handleAnswer(selectedId) {
   if (correct) {
     activeQuiz.correct += 1;
   } else {
-    activeQuiz.wrong.push({
-      answerId: question.answerId,
-      selectedId,
-      promptType: activeQuiz.promptType,
-      choiceType: activeQuiz.choiceType,
-    });
+    if (activeQuiz.kind === "special") {
+      activeQuiz.wrong.push({
+        kind: "special",
+        prompt: question.prompt,
+        detail: question.detail,
+        answer: question.answer,
+        selected: selectedId,
+      });
+    } else {
+      activeQuiz.wrong.push({
+        answerId: question.answerId,
+        selectedId,
+        promptType: activeQuiz.promptType,
+        choiceType: activeQuiz.choiceType,
+      });
+    }
   }
 
   renderQuiz();
@@ -700,9 +1143,24 @@ function handleAnswer(selectedId) {
   );
 }
 
+function isPointAnswerCorrect(selectedId, question) {
+  if (selectedId === question.answerId) return true;
+  if (activeQuiz.choiceType !== "name") return false;
+
+  const answer = pointById.get(question.answerId);
+  const selected = pointById.get(selectedId);
+  return normalizePointName(answer) === normalizePointName(selected);
+}
+
+function isPointChoiceCorrect(choice, answer) {
+  if (choice.id === answer.id) return true;
+  if (activeQuiz.choiceType !== "name") return false;
+  return normalizePointName(choice) === normalizePointName(answer);
+}
+
 function renderResult() {
   const total = activeQuiz.questions.length;
-  const score = Math.round((activeQuiz.correct / total) * 100);
+  const score = total ? Math.round((activeQuiz.correct / total) * 100) : 0;
   const wrongCount = activeQuiz.wrong.length;
 
   app.innerHTML = `
@@ -747,7 +1205,7 @@ function renderWrongReview(wrongCount) {
     <section class="screen">
       <h3>틀린 문제</h3>
       <ul class="wrong-list">
-        ${activeQuiz.wrong.map(renderWrongItem).join("")}
+        ${activeQuiz.wrong.map((record) => (record.kind === "special" ? renderSpecialWrongItem(record) : renderWrongItem(record))).join("")}
       </ul>
     </section>
   `;
@@ -766,6 +1224,19 @@ function renderWrongItem(record) {
         <strong>${escapeHtml(questionText)}</strong>
         <p>정답: ${escapeHtml(answer.name)}</p>
         <p class="muted">선택: ${escapeHtml(selected.name)}</p>
+      </div>
+    </li>
+  `;
+}
+
+function renderSpecialWrongItem(record) {
+  return `
+    <li class="wrong-item text-only">
+      <div>
+        <strong>${escapeHtml(record.prompt)}</strong>
+        ${record.detail ? `<p class="muted">${escapeHtml(record.detail)}</p>` : ""}
+        <p>정답: ${escapeHtml(record.answer)}</p>
+        <p class="muted">선택: ${escapeHtml(record.selected)}</p>
       </div>
     </li>
   `;
@@ -792,7 +1263,7 @@ function renderSearchResults(query) {
   }
 
   const matches = allPoints
-    .filter((point) => normalizeText(point.name).includes(keyword))
+    .filter((point) => getPointSearchText(point).includes(keyword))
     .slice(0, 50);
 
   if (!matches.length) {
@@ -808,6 +1279,7 @@ function renderSearchResults(query) {
           <span>
             <strong>${escapeHtml(point.name)}</strong>
             <span>${escapeHtml(point.meridianName)}</span>
+            ${point.aliases?.length ? `<span>별칭: ${escapeHtml(point.aliases.join(", "))}</span>` : ""}
           </span>
         </button>
       `,
@@ -820,12 +1292,19 @@ function handleSearchResultClick(event) {
   if (!result) return;
 
   const point = pointById.get(result.dataset.id);
+  if (!point) return;
   closeSearch();
   startStudy(point.code, point.id);
 }
 
+function getPointSearchText(point) {
+  return normalizeText([point.name, ...(point.aliases || [])].join(" "));
+}
+
 function takeRepeatedShuffle(pool, count) {
   const result = [];
+  if (!pool.length || count <= 0) return result;
+
   while (result.length < count) {
     const shuffled = shuffle(pool);
     for (const item of shuffled) {

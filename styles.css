@@ -262,6 +262,11 @@ p {
   outline: 3px solid rgba(21, 127, 95, 0.14);
 }
 
+.special-unit-card {
+  border-color: rgba(193, 139, 46, 0.48);
+  background: #fffaf0;
+}
+
 .menu-list {
   display: grid;
   gap: 10px;
@@ -353,6 +358,12 @@ p {
   gap: 4px;
 }
 
+.point-aliases,
+.lesson-intro {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .image-panel {
   display: grid;
   place-items: center;
@@ -407,6 +418,80 @@ p {
   content: "";
 }
 
+.tip-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  color: #37413b;
+  background: #fffaf0;
+  border: 1px solid rgba(193, 139, 46, 0.38);
+  border-radius: var(--radius);
+}
+
+.tip-block p {
+  line-height: 1.55;
+}
+
+.lesson-row {
+  gap: 12px;
+}
+
+.fact-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.fact-item {
+  display: grid;
+  grid-template-columns: minmax(58px, auto) 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.fact-item dt {
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+.fact-item dd {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: #37413b;
+}
+
+.point-link {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  color: var(--accent-strong);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font-weight: 900;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.point-link:hover,
+.point-link:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  outline: none;
+}
+
+.fact-item dd span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.lesson-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .pager {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -431,6 +516,21 @@ p {
 .question-name strong {
   font-size: 2rem;
   line-height: 1.15;
+}
+
+.special-question {
+  gap: 8px;
+  text-align: center;
+}
+
+.special-question span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.special-question strong {
+  font-size: 1.35rem;
 }
 
 .choice-grid {
@@ -572,6 +672,10 @@ p {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+.wrong-item.text-only {
+  grid-template-columns: 1fr;
 }
 
 .wrong-item strong {
