@@ -1,6 +1,6 @@
 const DATA_URL = "assets/json/meridians.json";
 const QUESTION_LIMITS = [10, 25, 50];
-const IMAGE_PRELOAD_LOOKAHEAD = 2;
+const IMAGE_PRELOAD_LOOKAHEAD = 6;
 
 const app = document.querySelector("#app");
 const searchButton = document.querySelector("#searchButton");
@@ -18,6 +18,9 @@ let studyIndex = 0;
 let questionLimit = 25;
 let activeQuiz = null;
 let feedbackTimer = null;
+let imageLongPressTimer = null;
+let suppressImageChoiceClick = false;
+const IMAGE_LONG_PRESS_DELAY = 500;
 const imagePreloadCache = new Map();
 
 init();
@@ -45,6 +48,10 @@ async function init() {
 
 function bindEvents() {
   app.addEventListener("click", handleAppClick);
+  app.addEventListener("pointerdown", handleImageChoicePointerDown);
+  app.addEventListener("pointerup", clearImageLongPressTimer);
+  app.addEventListener("pointercancel", clearImageLongPressTimer);
+  app.addEventListener("pointerleave", clearImageLongPressTimer);
   searchButton.addEventListener("click", openSearch);
   homeButton.addEventListener("click", renderHome);
   searchInput.addEventListener("input", () => renderSearchResults(searchInput.value));
@@ -55,7 +62,14 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !searchSheet.hidden) closeSearch();
+    if (event.key === "Escape") {
+      if (closeImagePreview()) return;
+      if (!searchSheet.hidden) closeSearch();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-image-preview]")) closeImagePreview();
   });
 }
 
@@ -76,6 +90,12 @@ function decorateData() {
 }
 
 function handleAppClick(event) {
+  if (suppressImageChoiceClick && event.target.closest(".image-choice")) {
+    event.preventDefault();
+    suppressImageChoiceClick = false;
+    return;
+  }
+
   const button = event.target.closest("[data-action]");
   if (!button) return;
 
@@ -567,12 +587,59 @@ function renderChoice(choice, answer) {
       type="button"
       data-action="answer"
       data-id="${escapeHtml(choice.id)}"
+      data-preview-src="${escapeHtml(choice.image)}"
+      data-preview-alt="경혈 위치 이미지 확대"
       aria-label="이미지 선택지"
       ${disabled}
     >
       <img src="${escapeHtml(choice.image)}" alt="" loading="lazy" />
     </button>
   `;
+}
+
+function handleImageChoicePointerDown(event) {
+  const choice = event.target.closest(".image-choice");
+  if (!choice || activeQuiz?.choiceType !== "image") return;
+  if (event.pointerType === "mouse") return;
+
+  clearImageLongPressTimer();
+  imageLongPressTimer = setTimeout(() => {
+    suppressImageChoiceClick = true;
+    showImagePreview({
+      src: choice.dataset.previewSrc,
+      alt: choice.dataset.previewAlt,
+    });
+  }, IMAGE_LONG_PRESS_DELAY);
+}
+
+function clearImageLongPressTimer() {
+  if (!imageLongPressTimer) return;
+  clearTimeout(imageLongPressTimer);
+  imageLongPressTimer = null;
+}
+
+function showImagePreview({ src, alt }) {
+  clearImageLongPressTimer();
+  if (!src) return;
+
+  closeImagePreview();
+  const preview = document.createElement("div");
+  preview.className = "image-preview";
+  preview.dataset.closeImagePreview = "";
+  preview.innerHTML = `
+    <figure class="image-preview-panel" role="dialog" aria-modal="true" aria-label="경혈 위치 이미지 확대">
+      <button class="image-preview-close" type="button" data-close-image-preview aria-label="확대 이미지 닫기">×</button>
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt || "경혈 위치 이미지 확대")}" />
+    </figure>
+  `;
+  document.body.append(preview);
+}
+
+function closeImagePreview() {
+  const preview = document.querySelector(".image-preview");
+  if (!preview) return false;
+  preview.remove();
+  return true;
 }
 
 function getChoiceFeedbackClass(choice, answer) {
