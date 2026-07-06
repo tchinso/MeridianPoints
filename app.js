@@ -25,6 +25,7 @@ let selectedMeridian = null;
 let selectedSpecialUnit = false;
 let studyIndex = 0;
 let specialStudyIndex = 0;
+let studyReturnTarget = null;
 let questionLimit = 25;
 let activeQuiz = null;
 let feedbackTimer = null;
@@ -115,12 +116,14 @@ function handleAppClick(event) {
   const id = button.dataset.id;
 
   if (action === "select-meridian") {
+    studyReturnTarget = null;
     selectedSpecialUnit = false;
     selectedMeridian = meridianByCode.get(code);
     renderMenu();
   }
 
   if (action === "select-special-unit") {
+    studyReturnTarget = null;
     selectedSpecialUnit = true;
     selectedMeridian = null;
     renderSpecialMenu();
@@ -128,10 +131,18 @@ function handleAppClick(event) {
 
   if (action === "open-point") {
     const point = pointById.get(id);
-    if (point) startStudy(point.code, point.id);
+    if (point) {
+      startStudy(point.code, point.id, {
+        returnTarget: {
+          type: "special-study",
+          index: specialStudyIndex,
+        },
+      });
+    }
   }
 
   if (action === "back-home") renderHome();
+  if (action === "back-special-study") returnToSpecialStudy();
   if (action === "back-menu") {
     if (selectedSpecialUnit) {
       renderSpecialMenu();
@@ -195,6 +206,7 @@ function renderHome() {
   activeQuiz = null;
   selectedMeridian = null;
   selectedSpecialUnit = false;
+  studyReturnTarget = null;
 
   app.innerHTML = `
     <section class="screen">
@@ -371,10 +383,11 @@ function menuCard(id, title, detail) {
   `;
 }
 
-function startStudy(code, pointId = null) {
+function startStudy(code, pointId = null, options = {}) {
   clearFeedbackTimer();
   activeQuiz = null;
   selectedSpecialUnit = false;
+  studyReturnTarget = options.returnTarget || null;
   selectedMeridian = meridianByCode.get(code);
   studyIndex = pointId
     ? Math.max(0, selectedMeridian.points.findIndex((point) => point.id === pointId))
@@ -392,7 +405,7 @@ function renderStudy() {
   app.innerHTML = `
     <section class="screen">
       <div class="study-top">
-        <button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>
+        ${renderStudyBackButton()}
         <button class="study-nav-button" type="button" data-action="study-prev" ${studyIndex === 0 ? "disabled" : ""}>이전</button>
         <span class="progress-pill">${studyIndex + 1} / ${selectedMeridian.points.length}</span>
         <button class="study-nav-button" type="button" data-action="study-next" ${studyIndex === selectedMeridian.points.length - 1 ? "disabled" : ""}>다음</button>
@@ -415,6 +428,20 @@ function renderStudy() {
   `;
 
   preloadUpcomingStudyImages(studyIndex + 1);
+}
+
+function renderStudyBackButton() {
+  if (studyReturnTarget?.type === "special-study") {
+    return `<button class="text-button secondary return-button" type="button" data-action="back-special-study">요혈 학습</button>`;
+  }
+
+  return `<button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>`;
+}
+
+function returnToSpecialStudy() {
+  const targetIndex = studyReturnTarget?.type === "special-study" ? studyReturnTarget.index : specialStudyIndex;
+  studyReturnTarget = null;
+  startSpecialStudy(targetIndex);
 }
 
 function renderPointAliases(point) {
@@ -480,6 +507,7 @@ function infoBlock(title, items) {
 function startSpecialStudy(index = 0) {
   clearFeedbackTimer();
   activeQuiz = null;
+  studyReturnTarget = null;
   selectedSpecialUnit = true;
   selectedMeridian = null;
   specialStudyIndex = Math.max(0, Math.min(index, getImportantLessons().length - 1));
