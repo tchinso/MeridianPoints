@@ -388,13 +388,16 @@ function buildQuestions(config) {
 function buildChoices(answer, config) {
   const desiredCount = 1 + config.sameChoices + config.otherChoices;
   const selected = new Map([[answer.id, answer]]);
+  const selectedNames = new Set([normalizePointName(answer)]);
 
   const addFromPool = (pool, count) => {
     let added = 0;
     for (const point of shuffle(pool)) {
       if (added >= count) break;
-      if (point.id === answer.id || selected.has(point.id)) continue;
+      const pointName = normalizePointName(point);
+      if (point.id === answer.id || selected.has(point.id) || selectedNames.has(pointName)) continue;
       selected.set(point.id, point);
+      selectedNames.add(pointName);
       added += 1;
     }
     return added;
@@ -844,6 +847,10 @@ function shuffle(items) {
 
 function normalizeText(value) {
   return String(value).trim().toLocaleLowerCase("ko-KR");
+}
+
+function normalizePointName(point) {
+  return normalizeText(point?.name || "");
 }
 
 function escapeHtml(value) {
