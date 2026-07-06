@@ -2,6 +2,7 @@ const DATA_URL = "assets/json/meridians.json";
 const QUESTION_LIMITS = [10, 25, 50];
 const IMAGE_PRELOAD_LOOKAHEAD = 6;
 const SPECIAL_UNIT_TITLE = "요혈·오수혈·오행혈";
+const SPECIAL_STUDY_PREFIX = "special-study-";
 const SPECIAL_QUIZ_PREFIX = "special-quiz-";
 const SPECIAL_CUMULATIVE_PREFIX = "special-cumulative-";
 const SPECIAL_CHOICE_FALLBACKS = {
@@ -153,7 +154,9 @@ function handleAppClick(event) {
 
   if (action === "set-limit") {
     questionLimit = Number(button.dataset.count);
-    if (selectedSpecialUnit) {
+    if (button.dataset.scope === "special-study") {
+      renderSpecialStudy();
+    } else if (selectedSpecialUnit) {
       renderSpecialMenu();
     } else {
       renderMenu();
@@ -165,6 +168,8 @@ function handleAppClick(event) {
       startStudy(selectedMeridian.code);
     } else if (menu === "special-study") {
       startSpecialStudy();
+    } else if (menu.startsWith(SPECIAL_STUDY_PREFIX)) {
+      startSpecialStudyByMenu(menu);
     } else {
       startQuiz(menu);
     }
@@ -328,50 +333,42 @@ function renderSpecialMenu() {
         <h2>${SPECIAL_UNIT_TITLE}</h2>
       </div>
 
-      <div class="segment" aria-label="문제 수">
-        <span class="segment-label">문제 수</span>
-        <div class="segment-buttons">
-          ${QUESTION_LIMITS.map(
-            (count) => `
-              <button
-                class="segment-button ${questionLimit === count ? "is-active" : ""}"
-                type="button"
-                data-action="set-limit"
-                data-count="${count}"
-              >
-                ${count}문제
-              </button>
-            `,
-          ).join("")}
-        </div>
-      </div>
-
       <div class="menu-list">
-        ${menuCard("special-study", "학습(잘게 보기)", "요혈부터 오행혈까지 8묶음")}
-        ${renderSpecialQuizCards(lessons)}
+        ${renderSpecialLessonCards(lessons)}
       </div>
     </section>
   `;
 }
 
-function renderSpecialQuizCards(lessons) {
+function renderSpecialLessonCards(lessons) {
   return lessons
-    .map((lesson, index) => {
-      const shortTitle = lesson.title.replace(/^.+?:\s*/, "");
-      const cumulativeCount = lessons
-        .slice(0, index + 1)
-        .reduce((sum, item) => sum + item.quizItems.length, 0);
-
-      return `
-        ${menuCard(`${SPECIAL_QUIZ_PREFIX}${lesson.id}`, `퀴즈 ${index + 1}: ${shortTitle}`, `${Math.min(questionLimit, lesson.quizItems.length)}문제`)}
-        ${menuCard(
-          `${SPECIAL_CUMULATIVE_PREFIX}${lesson.id}`,
-          `누적 퀴즈 1~${index + 1}`,
-          `${Math.min(questionLimit, cumulativeCount)}문제`,
-        )}
-      `;
-    })
+    .map((lesson) => menuCard(`${SPECIAL_STUDY_PREFIX}${lesson.id}`, lesson.title, lesson.intro || "소단원 학습"))
     .join("");
+}
+
+function renderQuestionLimitSegment(scope = "") {
+  const scopeAttribute = scope ? ` data-scope="${escapeHtml(scope)}"` : "";
+
+  return `
+    <div class="segment" aria-label="문제 수">
+      <span class="segment-label">문제 수</span>
+      <div class="segment-buttons">
+        ${QUESTION_LIMITS.map(
+          (count) => `
+            <button
+              class="segment-button ${questionLimit === count ? "is-active" : ""}"
+              type="button"
+              data-action="set-limit"
+              data-count="${count}"
+              ${scopeAttribute}
+            >
+              ${count}문제
+            </button>
+          `,
+        ).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function menuCard(id, title, detail) {
@@ -514,6 +511,18 @@ function startSpecialStudy(index = 0) {
   renderSpecialStudy();
 }
 
+function startSpecialStudyByMenu(menuId) {
+  const lessonId = menuId.replace(SPECIAL_STUDY_PREFIX, "");
+  const lessonIndex = getImportantLessons().findIndex((lesson) => lesson.id === lessonId);
+
+  if (lessonIndex < 0) {
+    renderSpecialMenu();
+    return;
+  }
+
+  startSpecialStudy(lessonIndex);
+}
+
 function renderSpecialStudy() {
   const lessons = getImportantLessons();
   const lesson = lessons[specialStudyIndex];
@@ -539,6 +548,8 @@ function renderSpecialStudy() {
       </div>
 
       ${renderSpecialLessonRows(lesson)}
+
+      ${renderQuestionLimitSegment("special-study")}
 
       <div class="lesson-actions">
         <button class="result-action secondary" type="button" data-action="start-menu" data-menu="${SPECIAL_QUIZ_PREFIX}${escapeHtml(lesson.id)}">이 묶음 퀴즈</button>
