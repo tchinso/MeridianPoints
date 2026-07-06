@@ -588,8 +588,7 @@ function renderChoice(choice, answer) {
       data-action="answer"
       data-id="${escapeHtml(choice.id)}"
       data-preview-src="${escapeHtml(choice.image)}"
-      data-preview-alt="${escapeHtml(choice.name)} 위치 이미지"
-      data-preview-title="${escapeHtml(choice.name)}"
+      data-preview-alt="경혈 위치 이미지 확대"
       aria-label="이미지 선택지"
       ${disabled}
     >
@@ -609,7 +608,6 @@ function handleImageChoicePointerDown(event) {
     showImagePreview({
       src: choice.dataset.previewSrc,
       alt: choice.dataset.previewAlt,
-      title: choice.dataset.previewTitle,
     });
   }, IMAGE_LONG_PRESS_DELAY);
 }
@@ -620,7 +618,7 @@ function clearImageLongPressTimer() {
   imageLongPressTimer = null;
 }
 
-function showImagePreview({ src, alt, title }) {
+function showImagePreview({ src, alt }) {
   clearImageLongPressTimer();
   if (!src) return;
 
@@ -629,10 +627,9 @@ function showImagePreview({ src, alt, title }) {
   preview.className = "image-preview";
   preview.dataset.closeImagePreview = "";
   preview.innerHTML = `
-    <figure class="image-preview-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title || "경혈 위치 이미지 확대")}">
+    <figure class="image-preview-panel" role="dialog" aria-modal="true" aria-label="경혈 위치 이미지 확대">
       <button class="image-preview-close" type="button" data-close-image-preview aria-label="확대 이미지 닫기">×</button>
       <img src="${escapeHtml(src)}" alt="${escapeHtml(alt || "경혈 위치 이미지 확대")}" />
-      ${title ? `<figcaption>${escapeHtml(title)}</figcaption>` : ""}
     </figure>
   `;
   document.body.append(preview);
