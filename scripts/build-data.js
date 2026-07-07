@@ -157,8 +157,11 @@ function reorderMeridians(meridians) {
 }
 
 function applyPointAliases(meridians) {
-  const li19 = meridians.flatMap((meridian) => meridian.points).find((point) => point.id === "LI19");
+  const points = meridians.flatMap((meridian) => meridian.points);
+  const li19 = points.find((point) => point.id === "LI19");
+  const te22 = points.find((point) => point.id === "TE22");
   if (li19) li19.aliases = ["구화료"];
+  if (te22) te22.aliases = ["이화료"];
 }
 
 function parseImportantData(source, meridians) {

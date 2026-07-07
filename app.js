@@ -420,11 +420,15 @@ function renderStudy() {
 
       ${infoBlock("위치", point.location)}
       ${infoBlock("취혈요령", point.technique)}
-      ${studyIndex === selectedMeridian.points.length - 1 ? renderMeridianImportantTip(selectedMeridian) : ""}
+      ${shouldShowMeridianImportantTip() ? renderMeridianImportantTip(selectedMeridian) : ""}
     </section>
   `;
 
   preloadUpcomingStudyImages(studyIndex + 1);
+}
+
+function shouldShowMeridianImportantTip() {
+  return studyIndex === 0 || studyIndex === selectedMeridian.points.length - 1;
 }
 
 function renderStudyBackButton() {
