@@ -5,6 +5,16 @@ const SPECIAL_UNIT_TITLE = "요혈·오수혈·오행혈";
 const SPECIAL_STUDY_PREFIX = "special-study-";
 const SPECIAL_QUIZ_PREFIX = "special-quiz-";
 const SPECIAL_CUMULATIVE_PREFIX = "special-cumulative-";
+const PRIMARY_MERIDIAN_CODES = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR"];
+const EXTRAORDINARY_MERIDIAN_CODES = ["CV", "GV"];
+const CUMULATIVE_CODE_OVERRIDES = {
+  CV: ["LU", "LI", "CV"],
+  GV: ["CV", "ST", "SP", "HT", "SI", "GV"],
+  TE: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "CV", "GV", "TE"],
+  GB: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "CV", "GV", "GB"],
+  LR: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "CV", "GV", "LR"],
+};
+
 const SPECIAL_CHOICE_FALLBACKS = {
   "key-type": ["수혈", "모혈", "낙혈", "극혈"],
   "five-shu-category": ["정혈", "형혈", "수혈", "경혈", "합혈"],
@@ -228,15 +238,11 @@ function renderHome() {
 
 function renderHomeUnitCards() {
   const cards = [];
+  const primaryMeridians = getMeridiansByCodes(PRIMARY_MERIDIAN_CODES);
+  const extraordinaryMeridians = getMeridiansByCodes(EXTRAORDINARY_MERIDIAN_CODES);
 
-  for (const meridian of data.meridians) {
-    cards.push(`
-      <button class="unit-card" type="button" data-action="select-meridian" data-code="${escapeHtml(meridian.code)}">
-        <strong>${escapeHtml(meridian.name)}</strong>
-        <span>${meridian.points.length}혈</span>
-      </button>
-    `);
-  }
+  cards.push(renderUnitSection("12경맥", primaryMeridians));
+  cards.push(renderUnitSection("기경팔맥", extraordinaryMeridians));
 
   if (hasSpecialUnit()) {
     cards.push(`
@@ -248,6 +254,28 @@ function renderHomeUnitCards() {
   }
 
   return cards.join("");
+}
+
+function getMeridiansByCodes(codes) {
+  return codes.map((code) => meridianByCode.get(code)).filter(Boolean);
+}
+
+function renderUnitSection(title, meridians) {
+  if (!meridians.length) return "";
+
+  return `
+    <div class="unit-section-title">${escapeHtml(title)}</div>
+    ${meridians.map(renderUnitCard).join("")}
+  `;
+}
+
+function renderUnitCard(meridian) {
+  return `
+    <button class="unit-card" type="button" data-action="select-meridian" data-code="${escapeHtml(meridian.code)}">
+      <strong>${escapeHtml(meridian.name)}</strong>
+      <span>${meridian.points.length}혈</span>
+    </button>
+  `;
 }
 
 function hasSpecialUnit() {
@@ -625,6 +653,16 @@ function startQuiz(menuId) {
   renderQuiz();
 }
 
+function getCumulativeMeridians(meridian) {
+  const overrideCodes = CUMULATIVE_CODE_OVERRIDES[meridian.code];
+  if (overrideCodes) return getMeridiansByCodes(overrideCodes);
+
+  return data.meridians.filter((candidate) => (
+    PRIMARY_MERIDIAN_CODES.includes(candidate.code)
+    && candidate.order <= meridian.order
+  ));
+}
+
 function createQuizConfig(menuId) {
   if (menuId.startsWith(SPECIAL_QUIZ_PREFIX) || menuId.startsWith(SPECIAL_CUMULATIVE_PREFIX)) {
     return createSpecialQuizConfig(menuId);
@@ -633,9 +671,7 @@ function createQuizConfig(menuId) {
   if (!selectedMeridian) return null;
 
   const unitPoints = selectedMeridian.points;
-  const cumulativePoints = data.meridians
-    .filter((meridian) => meridian.order <= selectedMeridian.order)
-    .flatMap((meridian) => meridian.points);
+  const cumulativePoints = getCumulativeMeridians(selectedMeridian).flatMap((meridian) => meridian.points);
 
   const configs = {
     "image-name-ordered": {

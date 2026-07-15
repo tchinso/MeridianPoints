@@ -223,6 +223,14 @@ p {
   gap: 10px;
 }
 
+.unit-section-title {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .unit-card,
 .menu-card {
   display: grid;
@@ -805,6 +813,10 @@ p {
   .unit-grid,
   .menu-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unit-section-title {
+    grid-column: 1 / -1;
   }
 
   .image-choice,
