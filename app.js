@@ -9,6 +9,10 @@ const PRIMARY_MERIDIAN_CODES = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", 
 const EXTRAORDINARY_MERIDIAN_CODES = ["CV", "GV"];
 const CUMULATIVE_CODE_OVERRIDES = {
   CV: ["LU", "LI", "CV"],
+  ST: ["LU", "LI", "CV", "ST"],
+  SP: ["LU", "LI", "CV", "ST", "SP"],
+  HT: ["LU", "LI", "CV", "ST", "SP", "HT"],
+  SI: ["LU", "LI", "CV", "ST", "SP", "HT", "SI"],
   GV: ["CV", "ST", "SP", "HT", "SI", "GV"],
   BL: ["LU", "LI", "ST", "SP", "HT", "SI", "GV", "BL"],
   KI: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "GV", "KI"],
