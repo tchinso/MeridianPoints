@@ -8,18 +8,20 @@ const SPECIAL_CUMULATIVE_PREFIX = "special-cumulative-";
 const PRIMARY_MERIDIAN_CODES = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR"];
 const EXTRAORDINARY_MERIDIAN_CODES = ["CV", "GV"];
 const CUMULATIVE_CODE_OVERRIDES = {
-  CV: ["LU", "LI", "CV"],
-  ST: ["LU", "LI", "CV", "ST"],
-  SP: ["LU", "LI", "CV", "ST", "SP"],
-  HT: ["LU", "LI", "CV", "ST", "SP", "HT"],
-  SI: ["LU", "LI", "CV", "ST", "SP", "HT", "SI"],
-  GV: ["CV", "ST", "SP", "HT", "SI", "GV"],
-  BL: ["LU", "LI", "ST", "SP", "HT", "SI", "GV", "BL"],
-  KI: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "GV", "KI"],
-  PC: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "GV", "PC"],
-  TE: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "CV", "GV", "TE"],
-  GB: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "CV", "GV", "GB"],
-  LR: ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "CV", "GV", "LR"],
+  LI: ["LI"],
+  LU: ["LI", "LU"],
+  CV: ["LI", "LU", "CV"],
+  ST: ["LI", "LU", "CV", "ST"],
+  SP: ["LI", "LU", "CV", "ST", "SP"],
+  HT: ["LI", "LU", "CV", "ST", "SP", "HT"],
+  SI: ["LI", "LU", "CV", "ST", "SP", "HT", "SI"],
+  GV: ["LI", "LU", "CV", "ST", "SP", "HT", "SI", "GV"],
+  BL: ["LU", "CV", "ST", "SP", "HT", "SI", "GV", "BL"],
+  KI: ["CV", "ST", "SP", "HT", "SI", "GV", "BL", "KI"],
+  PC: ["ST", "SP", "HT", "SI", "GV", "BL", "KI", "PC"],
+  TE: ["SP", "HT", "SI", "GV", "BL", "KI", "PC", "TE"],
+  GB: ["HT", "SI", "GV", "BL", "KI", "PC", "TE", "GB"],
+  LR: ["LI", "LU", "CV", "ST", "SP", "HT", "SI", "GV", "BL", "KI", "PC", "TE", "GB", "LR"],
 };
 
 const SPECIAL_CHOICE_FALLBACKS = {
