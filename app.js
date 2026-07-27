@@ -41,6 +41,9 @@ let data = null;
 let allPoints = [];
 let meridianByCode = new Map();
 let pointById = new Map();
+let termGlossary = {};
+let termPattern = null;
+let termDefinitionSequence = 0;
 let selectedMeridian = null;
 let selectedSpecialUnit = false;
 let studyIndex = 0;
@@ -94,6 +97,7 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (closeTermDefinitions()) return;
       if (closeImagePreview()) return;
       if (!searchSheet.hidden) closeSearch();
     }
@@ -107,6 +111,12 @@ function bindEvents() {
 function decorateData() {
   meridianByCode = new Map();
   pointById = new Map();
+  termGlossary = data.termGlossary || {};
+
+  const terms = Object.keys(termGlossary).sort((a, b) => b.length - a.length);
+  termPattern = terms.length
+    ? new RegExp(`(${terms.map(escapeRegularExpression).join("|")})`, "g")
+    : null;
 
   for (const meridian of data.meridians) {
     meridianByCode.set(meridian.code, meridian);
@@ -128,12 +138,20 @@ function handleAppClick(event) {
   }
 
   const button = event.target.closest("[data-action]");
-  if (!button) return;
+  if (!button) {
+    closeTermDefinitions();
+    return;
+  }
 
   const action = button.dataset.action;
   const code = button.dataset.code;
   const menu = button.dataset.menu;
   const id = button.dataset.id;
+
+  if (action === "toggle-term-definition") {
+    toggleTermDefinition(button);
+    return;
+  }
 
   if (action === "select-meridian") {
     studyReturnTarget = null;
@@ -531,7 +549,7 @@ function formatPointName(item) {
 
 function infoBlock(title, items) {
   const list = items.length
-    ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    ? items.map((item) => `<li>${renderGlossaryText(item)}</li>`).join("")
     : `<li>등록된 내용 없음</li>`;
 
   return `
@@ -540,6 +558,58 @@ function infoBlock(title, items) {
       <ul class="info-list">${list}</ul>
     </section>
   `;
+}
+
+function renderGlossaryText(text) {
+  if (!termPattern) return escapeHtml(text);
+
+  return text.split(termPattern).map((part) => {
+    const definition = termGlossary[part];
+    return definition ? renderTermDefinition(part, definition) : escapeHtml(part);
+  }).join("");
+}
+
+function renderTermDefinition(term, definition) {
+  const definitionId = `term-definition-${++termDefinitionSequence}`;
+
+  return `
+    <button
+      class="term-definition-trigger"
+      type="button"
+      data-action="toggle-term-definition"
+      aria-label="${escapeHtml(term)}"
+      aria-describedby="${definitionId}"
+      aria-expanded="false"
+    >
+      ${escapeHtml(term)}
+      <span class="term-definition" id="${definitionId}" role="tooltip" hidden>${escapeHtml(definition)}</span>
+    </button>
+  `;
+}
+
+function toggleTermDefinition(button) {
+  const isOpen = button.getAttribute("aria-expanded") === "true";
+  closeTermDefinitions();
+
+  if (!isOpen) {
+    button.setAttribute("aria-expanded", "true");
+    button.querySelector(".term-definition").hidden = false;
+  }
+}
+
+function closeTermDefinitions() {
+  const openTriggers = [...app.querySelectorAll('.term-definition-trigger[aria-expanded="true"]')];
+
+  for (const trigger of openTriggers) {
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.querySelector(".term-definition").hidden = true;
+  }
+
+  return openTriggers.length > 0;
+}
+
+function escapeRegularExpression(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function startSpecialStudy(index = 0) {
