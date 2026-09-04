@@ -343,6 +343,9 @@ async function createThreeDViewer() {
   renderer.domElement.setAttribute("aria-hidden", "true");
   modelViewerStage.append(renderer.domElement);
 
+  const nearbyLabelOverlay = createThreeDNearbyLabelOverlay();
+  modelViewerStage.append(nearbyLabelOverlay.root);
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x10231e);
   const camera = new THREE.PerspectiveCamera(36, 1, 0.01, 100);
@@ -389,6 +392,11 @@ async function createThreeDViewer() {
     rimLight,
     ground,
     markerGroup,
+    nearbyLabelOverlay: nearbyLabelOverlay.root,
+    nearbyLabelLeaders: nearbyLabelOverlay.leaders,
+    nearbyLabels: [],
+    nearbyLabelLayoutDirty: true,
+    nearbyLabelLayoutSignature: "",
     model: null,
     modelKey: null,
     bounds: null,
@@ -399,7 +407,10 @@ async function createThreeDViewer() {
     ktx2Loader: null,
   };
 
-  controls.addEventListener("change", renderThreeDFrame);
+  controls.addEventListener("change", () => {
+    viewer.nearbyLabelLayoutDirty = true;
+    renderThreeDFrame();
+  });
   if (typeof ResizeObserver !== "undefined") {
     viewer.resizeObserver = new ResizeObserver(resizeThreeDViewer);
     viewer.resizeObserver.observe(modelViewerStage);
@@ -408,6 +419,19 @@ async function createThreeDViewer() {
   }
 
   return viewer;
+}
+
+function createThreeDNearbyLabelOverlay() {
+  const root = document.createElement("div");
+  root.className = "three-d-nearby-label-overlay";
+  root.setAttribute("aria-hidden", "true");
+
+  const leaders = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  leaders.classList.add("three-d-nearby-leaders");
+  leaders.setAttribute("focusable", "false");
+  root.append(leaders);
+
+  return { root, leaders };
 }
 
 async function loadThreeDModel(viewer, dataset) {
@@ -600,7 +624,7 @@ function focusThreeDPoint(viewer, dataset, point, entry) {
   clearThreeDMarkers(viewer);
   for (const [index, targetAnchor] of targetAnchors.entries()) {
     const markerId = targetAnchors.length > 1 ? `${point.id}:${index + 1}` : point.id;
-    viewer.markerGroup.add(createThreeDMarker(viewer, targetAnchor.position, markerRadius * 1.22, 0xe63838, markerId));
+    viewer.markerGroup.add(createThreeDMarker(viewer, targetAnchor.position, markerRadius * 1.14, 0xe63838, markerId));
   }
 
   const nearbyIds = getNearbyPointIds(dataset, point.id, entry);
@@ -611,9 +635,17 @@ function focusThreeDPoint(viewer, dataset, point, entry) {
 
     try {
       const nearbyAnchors = resolveThreeDEntryAnchors(viewer, nearbyEntry, dataset);
+      const nearbyInstances = getThreeDEntryInstances(nearbyEntry);
+      const nearbyMarkerRadius = getNearbyMarkerRadius(markerRadius);
       for (const [index, nearbyAnchor] of nearbyAnchors.entries()) {
         const markerId = nearbyAnchors.length > 1 ? `${nearbyId}:${index + 1}` : nearbyId;
-        viewer.markerGroup.add(createThreeDMarker(viewer, nearbyAnchor.position, markerRadius, 0x060807, markerId));
+        viewer.markerGroup.add(createThreeDMarker(viewer, nearbyAnchor.position, nearbyMarkerRadius, 0x060807, markerId));
+        addThreeDNearbyLabel(viewer, {
+          id: markerId,
+          position: nearbyAnchor.position,
+          normal: nearbyAnchor.normal,
+          text: getThreeDNearbyLabelText(nearbyId, nearbyEntry, nearbyInstances[index], nearbyAnchors.length),
+        });
         nearbyCount += 1;
       }
     } catch (error) {
@@ -639,6 +671,7 @@ function focusThreeDPoint(viewer, dataset, point, entry) {
   controls.update();
   viewer.currentPointId = point.id;
   viewer.currentDataset = dataset;
+  viewer.nearbyLabelLayoutDirty = true;
   modelViewerTarget.textContent = nearbyCount
     ? `${point.id} ${point.name} · 주변 ${nearbyCount}혈을 함께 표시합니다.`
     : `${point.id} ${point.name}을(를) 빨간 점으로 표시합니다.`;
@@ -675,16 +708,22 @@ function resolveThreeDAnchor(viewer, entry, dataset) {
   const anchor = getThreeDAnchor(entry);
   const directPosition = readThreeDVector3(viewer.THREE, anchor.position || anchor.worldPosition);
   const directNormal = readThreeDVector3(viewer.THREE, anchor.normal);
+  const hasSurfaceAttachment = Boolean(
+    anchor.mesh && Number.isInteger(anchor.triangle) && Array.isArray(anchor.barycentric),
+  );
 
-  if (directPosition) {
+  // The generated dataset carries both a convenient saved position and a
+  // triangle/barycentric surface attachment.  Prefer the attachment whenever
+  // it is available: it keeps every one of the 361 points on the *rendered*
+  // skin after model-normal smoothing, transforms, or a future model update.
+  // The saved position remains a backwards-compatible fallback for external
+  // data that has not been surface-bound yet.
+  if (!hasSurfaceAttachment) {
+    if (!directPosition) throw new Error("3D anchor position is missing");
     return {
       position: applyMarkerOffset(directPosition, directNormal, getMarkerOffset(entry, anchor, dataset)),
       normal: directNormal,
     };
-  }
-
-  if (!anchor.mesh || !Number.isInteger(anchor.triangle) || !Array.isArray(anchor.barycentric)) {
-    throw new Error("3D anchor position is missing");
   }
 
   const mesh = viewer.model?.getObjectByName(anchor.mesh);
@@ -792,7 +831,46 @@ function getMarkerRadius(viewer, dataset, entry) {
   const modelRadius = dataset.model.markerRadius;
   const requestedRadius = entry?.markerRadius ?? getThreeDAnchor(entry)?.markerRadius ?? modelRadius;
   const automaticRadius = Math.max(viewer.bounds.getSize(new viewer.THREE.Vector3()).length() * 0.008, 0.006);
-  return getPositiveNumber(requestedRadius, automaticRadius);
+  // Markers are intentionally kept under half the originally authored size:
+  // the local anatomy remains visible on narrow mobile screens, while the
+  // target still has a modest visual lead over comparison points.
+  return Math.max(getPositiveNumber(requestedRadius, automaticRadius) * 0.48, 0.0038);
+}
+
+function getNearbyMarkerRadius(targetRadius) {
+  // Comparison dots should remain clearly subordinate to the red target while
+  // labels and leader lines carry the identifying information.
+  return Math.max(targetRadius * 0.55, 0.0032);
+}
+
+function getThreeDNearbyLabelText(pointId, entry, instance, instanceCount) {
+  const point = pointById.get(pointId);
+  const name = entry?.name || point?.name || "";
+  const laterality = instanceCount > 1 ? getThreeDLateralityLabel(instance?.laterality) : "";
+  return `${pointId}${name ? ` ${name}` : ""}${laterality ? ` · ${laterality}` : ""}`;
+}
+
+function getThreeDLateralityLabel(laterality) {
+  if (laterality === "left") return "좌";
+  if (laterality === "right") return "우";
+  return "";
+}
+
+function addThreeDNearbyLabel(viewer, label) {
+  if (!viewer.nearbyLabelOverlay || !label?.position?.isVector3) return;
+
+  const element = document.createElement("span");
+  element.className = "three-d-nearby-label";
+  element.dataset.markerId = label.id;
+  element.textContent = label.text;
+  viewer.nearbyLabelOverlay.append(element);
+  viewer.nearbyLabels.push({
+    ...label,
+    position: label.position.clone(),
+    normal: label.normal?.isVector3 ? label.normal.clone() : null,
+    element,
+  });
+  viewer.nearbyLabelLayoutDirty = true;
 }
 
 function createThreeDMarker(viewer, position, radius, color, id) {
@@ -864,11 +942,23 @@ function getNearbyPointIds(dataset, pointId, entry) {
 }
 
 function clearThreeDMarkers(viewer) {
+  clearThreeDNearbyLabels(viewer);
   while (viewer.markerGroup.children.length) {
     const marker = viewer.markerGroup.children[0];
     viewer.markerGroup.remove(marker);
     disposeThreeDObject(marker);
   }
+}
+
+function clearThreeDNearbyLabels(viewer) {
+  if (!viewer) return;
+  for (const label of viewer.nearbyLabels || []) {
+    label.element?.remove();
+  }
+  viewer.nearbyLabels = [];
+  viewer.nearbyLabelLeaders?.replaceChildren();
+  viewer.nearbyLabelLayoutDirty = true;
+  viewer.nearbyLabelLayoutSignature = "";
 }
 
 function clearThreeDModel(viewer) {
@@ -915,6 +1005,7 @@ function resizeThreeDViewer() {
   threeDViewer.renderer.setSize(width, height, false);
   threeDViewer.camera.aspect = width / height;
   threeDViewer.camera.updateProjectionMatrix();
+  threeDViewer.nearbyLabelLayoutDirty = true;
   renderThreeDFrame();
 }
 
@@ -938,7 +1029,153 @@ function stopThreeDRenderLoop() {
 
 function renderThreeDFrame() {
   if (!threeDViewer) return;
+  updateThreeDNearbyLabels(threeDViewer);
   threeDViewer.renderer.render(threeDViewer.scene, threeDViewer.camera);
+}
+
+function updateThreeDNearbyLabels(viewer) {
+  const overlay = viewer.nearbyLabelOverlay;
+  const labels = viewer.nearbyLabels;
+  if (!overlay || !labels?.length || modelViewerSheet?.hidden) {
+    viewer.nearbyLabelLeaders?.replaceChildren();
+    return;
+  }
+
+  const width = overlay.clientWidth;
+  const height = overlay.clientHeight;
+  if (!width || !height) return;
+
+  const { THREE, camera } = viewer;
+  camera.updateMatrixWorld();
+  const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
+  const cameraQuaternion = camera.getWorldQuaternion(new THREE.Quaternion());
+  const layoutSignature = [
+    width,
+    height,
+    Math.round(cameraPosition.x * 1000),
+    Math.round(cameraPosition.y * 1000),
+    Math.round(cameraPosition.z * 1000),
+    Math.round(cameraQuaternion.x * 10000),
+    Math.round(cameraQuaternion.y * 10000),
+    Math.round(cameraQuaternion.z * 10000),
+    Math.round(cameraQuaternion.w * 10000),
+  ].join(":");
+  if (!viewer.nearbyLabelLayoutDirty && viewer.nearbyLabelLayoutSignature === layoutSignature) return;
+
+  viewer.nearbyLabelLayoutDirty = false;
+  viewer.nearbyLabelLayoutSignature = layoutSignature;
+  viewer.nearbyLabelLeaders.replaceChildren();
+  viewer.nearbyLabelLeaders.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const candidates = [];
+  for (const label of labels) {
+    const projected = label.position.clone().project(camera);
+    const screenX = (projected.x * 0.5 + 0.5) * width;
+    const screenY = (-projected.y * 0.5 + 0.5) * height;
+    const isInView = projected.z >= -1 && projected.z <= 1 && screenX >= 0 && screenX <= width && screenY >= 0 && screenY <= height;
+    const isFacingCamera = !label.normal || label.normal.dot(cameraPosition.clone().sub(label.position).normalize()) > 0.035;
+
+    if (!isInView || !isFacingCamera) {
+      label.element.classList.remove("is-visible");
+      continue;
+    }
+
+    candidates.push({
+      ...label,
+      screenX,
+      screenY,
+      width: label.element.offsetWidth,
+      height: label.element.offsetHeight,
+    });
+  }
+
+  const markerPositions = candidates.map(({ screenX, screenY }) => ({ x: screenX, y: screenY }));
+  const occupied = [];
+  for (const candidate of candidates.sort((a, b) => a.screenY - b.screenY || a.screenX - b.screenX)) {
+    const placement = placeThreeDNearbyLabel(candidate, occupied, markerPositions, width, height);
+    candidate.element.style.left = `${Math.round(placement.x)}px`;
+    candidate.element.style.top = `${Math.round(placement.y)}px`;
+    candidate.element.classList.add("is-visible");
+    occupied.push(placement);
+    addThreeDNearbyLeader(viewer.nearbyLabelLeaders, candidate, placement);
+  }
+}
+
+function placeThreeDNearbyLabel(candidate, occupied, markerPositions, stageWidth, stageHeight) {
+  const padding = 7;
+  const gap = 12;
+  const verticalOffsets = [0, -24, 24, -48, 48, -72, 72, -96, 96];
+  const outwardDirection = candidate.screenX < stageWidth / 2 ? "left" : "right";
+  const directions = [outwardDirection, outwardDirection === "left" ? "right" : "left"];
+  let bestPlacement = null;
+
+  for (const direction of directions) {
+    for (const verticalOffset of verticalOffsets) {
+      const unclampedX = direction === "right"
+        ? candidate.screenX + gap
+        : candidate.screenX - gap - candidate.width;
+      const x = clampThreeDLabelValue(unclampedX, padding, Math.max(padding, stageWidth - candidate.width - padding));
+      const y = clampThreeDLabelValue(
+        candidate.screenY - candidate.height / 2 + verticalOffset,
+        padding,
+        Math.max(padding, stageHeight - candidate.height - padding),
+      );
+      const placement = { x, y, width: candidate.width, height: candidate.height };
+      const collision = getThreeDLabelCollisionScore(placement, occupied, markerPositions, candidate);
+      const travel = Math.abs(x - unclampedX) + Math.abs(verticalOffset) * 0.18;
+      const score = collision + travel;
+
+      if (collision === 0) return placement;
+      if (!bestPlacement || score < bestPlacement.score) bestPlacement = { ...placement, score };
+    }
+  }
+
+  return bestPlacement || { x: padding, y: padding, width: candidate.width, height: candidate.height };
+}
+
+function getThreeDLabelCollisionScore(placement, occupied, markerPositions, candidate) {
+  let score = 0;
+  for (const existing of occupied) {
+    score += getThreeDRectOverlapArea(placement, existing) * 5;
+  }
+
+  for (const marker of markerPositions) {
+    const isOwnMarker = Math.abs(marker.x - candidate.screenX) < 0.1 && Math.abs(marker.y - candidate.screenY) < 0.1;
+    if (!isOwnMarker && isThreeDPointInsideRect(marker, placement, 5)) score += 600;
+  }
+  return score;
+}
+
+function getThreeDRectOverlapArea(first, second) {
+  const width = Math.max(0, Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x));
+  const height = Math.max(0, Math.min(first.y + first.height, second.y + second.height) - Math.max(first.y, second.y));
+  return width * height;
+}
+
+function isThreeDPointInsideRect(point, rect, padding = 0) {
+  return point.x >= rect.x - padding
+    && point.x <= rect.x + rect.width + padding
+    && point.y >= rect.y - padding
+    && point.y <= rect.y + rect.height + padding;
+}
+
+function clampThreeDLabelValue(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function addThreeDNearbyLeader(svg, candidate, placement) {
+  if (!svg) return;
+  const endX = candidate.screenX <= placement.x
+    ? placement.x
+    : candidate.screenX >= placement.x + placement.width
+      ? placement.x + placement.width
+      : clampThreeDLabelValue(candidate.screenX, placement.x + 5, placement.x + placement.width - 5);
+  const endY = clampThreeDLabelValue(candidate.screenY, placement.y + 5, placement.y + placement.height - 5);
+  const bendX = candidate.screenX + (endX - candidate.screenX) * 0.5;
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.classList.add("three-d-nearby-leader");
+  line.setAttribute("points", `${candidate.screenX},${candidate.screenY} ${bendX},${candidate.screenY} ${endX},${endY}`);
+  svg.append(line);
 }
 
 function resetThreeDView() {

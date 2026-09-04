@@ -14,6 +14,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,6 +26,18 @@ const SURFACE_MESH_NAME = "Skin_Body";
 const ROUND_DIGITS = 6;
 const BILATERAL_CODES = new Set(["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR"]);
 const MIDLINE_CODES = new Set(["CV", "GV"]);
+// A reviewed raw route node may carry the outward direction implied by its
+// written location (for example, anterior, posterolateral, or medial). A
+// purely nearest-triangle projection can otherwise jump through a narrow limb
+// or torso to the opposite surface. Explicit reviewer constraints remain
+// authoritative. For all directionally-described template nodes, the guarded
+// fallback below only replaces an *opposite-facing* nearest triangle when a
+// similarly close, same-side alternative exists; ambiguous cases stay put and
+// are surfaced in the generated audit instead of being silently moved.
+const AUTO_DIRECTION_GUARD_TRIGGER = -0.20;
+const AUTO_DIRECTION_GUARD_MIN_ALIGNMENT = 0.45;
+const AUTO_DIRECTION_GUARD_MAX_EXTRA_DISTANCE = 0.04;
+const AUTO_DIRECTION_GUARD_MAX_VERTICAL_DRIFT = 0.08;
 // The BodyParts3D reference is an adult arms-down mesh. These fit factors
 // convert the original neutral-route template space into that mesh's narrower
 // torso/limb envelope before the final triangle projection. They are an
@@ -62,7 +75,7 @@ function readGlb(filePath) {
     offset += 8 + length;
   }
   if (!document || !binary) throw new Error(`${filePath} is missing JSON or binary GLB data.`);
-  return { document, binary };
+  return { document, binary, glb };
 }
 
 function readAccessorValues(document, binary, accessorIndex) {
@@ -95,8 +108,49 @@ function readAccessorValues(document, binary, accessorIndex) {
   return { values, count: accessor.count, components };
 }
 
+function scenePathToNode(document, targetIndex) {
+  const nodes = document.nodes || [];
+  const visit = (index, pathNodes) => {
+    if (index === targetIndex) return [...pathNodes, index];
+    for (const child of nodes[index]?.children || []) {
+      const found = visit(child, [...pathNodes, index]);
+      if (found) return found;
+    }
+    return null;
+  };
+  for (const scene of document.scenes || []) {
+    for (const root of scene.nodes || []) {
+      const found = visit(root, []);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function modelBinding(document, glb, meshIndex) {
+  const meshNodeIndex = document.nodes?.findIndex((node) => node.mesh === meshIndex);
+  const nodePath = Number.isInteger(meshNodeIndex) && meshNodeIndex >= 0
+    ? scenePathToNode(document, meshNodeIndex)
+    : null;
+  return {
+    algorithm: "sha256",
+    sha256: createHash("sha256").update(glb).digest("hex").toUpperCase(),
+    surfaceMesh: SURFACE_MESH_NAME,
+    meshIndex,
+    meshNodeIndex,
+    sceneNodePath: (nodePath || []).map((index) => ({
+      index,
+      name: document.nodes[index]?.name || null,
+      translation: document.nodes[index]?.translation || [0, 0, 0],
+      rotation: document.nodes[index]?.rotation || [0, 0, 0, 1],
+      scale: document.nodes[index]?.scale || [1, 1, 1],
+      matrix: document.nodes[index]?.matrix || null,
+    })),
+  };
+}
+
 function loadFinalSurface() {
-  const { document, binary } = readGlb(MODEL_PATH);
+  const { document, binary, glb } = readGlb(MODEL_PATH);
   const meshIndex = document.meshes?.findIndex((mesh) => mesh.name === SURFACE_MESH_NAME);
   const primitive = document.meshes?.[meshIndex]?.primitives?.[0];
   if (!primitive) throw new Error(`Surface mesh ${SURFACE_MESH_NAME} is missing from ${MODEL_PATH}.`);
@@ -118,6 +172,7 @@ function loadFinalSurface() {
     normals: normal?.values || null,
     indices,
     triangleCount: indices.length / 3,
+    modelBinding: modelBinding(document, glb, meshIndex),
   };
 }
 
@@ -192,9 +247,170 @@ function closestPointOnTriangle(px, py, pz, ax, ay, az, bx, by, bz, cx, cy, cz, 
   );
 }
 
-function closestSurfaceProjection(point, surface) {
+function triangleSurfaceNormal(surface, triangle, first, second, third) {
+  const { positions, indices, normals } = surface;
+  const firstIndex = indices[triangle * 3] * 3;
+  const secondIndex = indices[triangle * 3 + 1] * 3;
+  const thirdIndex = indices[triangle * 3 + 2] * 3;
+  let nx;
+  let ny;
+  let nz;
+
+  if (normals) {
+    nx = normals[firstIndex] * first + normals[secondIndex] * second + normals[thirdIndex] * third;
+    ny = normals[firstIndex + 1] * first + normals[secondIndex + 1] * second + normals[thirdIndex + 1] * third;
+    nz = normals[firstIndex + 2] * first + normals[secondIndex + 2] * second + normals[thirdIndex + 2] * third;
+  } else {
+    const ax = positions[firstIndex];
+    const ay = positions[firstIndex + 1];
+    const az = positions[firstIndex + 2];
+    nx = (positions[secondIndex + 1] - ay) * (positions[thirdIndex + 2] - az) - (positions[secondIndex + 2] - az) * (positions[thirdIndex + 1] - ay);
+    ny = (positions[secondIndex + 2] - az) * (positions[thirdIndex] - ax) - (positions[secondIndex] - ax) * (positions[thirdIndex + 2] - az);
+    nz = (positions[secondIndex] - ax) * (positions[thirdIndex + 1] - ay) - (positions[secondIndex + 1] - ay) * (positions[thirdIndex] - ax);
+  }
+
+  return normalise([nx, ny, nz]);
+}
+
+function triangleNormalAlignment(surface, triangle, first, second, third, intendedNormal) {
+  const { positions, indices, normals } = surface;
+  const firstIndex = indices[triangle * 3] * 3;
+  const secondIndex = indices[triangle * 3 + 1] * 3;
+  const thirdIndex = indices[triangle * 3 + 2] * 3;
+  let nx;
+  let ny;
+  let nz;
+
+  if (normals) {
+    nx = normals[firstIndex] * first + normals[secondIndex] * second + normals[thirdIndex] * third;
+    ny = normals[firstIndex + 1] * first + normals[secondIndex + 1] * second + normals[thirdIndex + 1] * third;
+    nz = normals[firstIndex + 2] * first + normals[secondIndex + 2] * second + normals[thirdIndex + 2] * third;
+  } else {
+    const ax = positions[firstIndex];
+    const ay = positions[firstIndex + 1];
+    const az = positions[firstIndex + 2];
+    nx = (positions[secondIndex + 1] - ay) * (positions[thirdIndex + 2] - az) - (positions[secondIndex + 2] - az) * (positions[thirdIndex + 1] - ay);
+    ny = (positions[secondIndex + 2] - az) * (positions[thirdIndex] - ax) - (positions[secondIndex] - ax) * (positions[thirdIndex + 2] - az);
+    nz = (positions[secondIndex] - ax) * (positions[thirdIndex + 1] - ay) - (positions[secondIndex + 1] - ay) * (positions[thirdIndex] - ax);
+  }
+
+  const length = Math.hypot(nx, ny, nz);
+  return length > 0
+    ? (nx * intendedNormal[0] + ny * intendedNormal[1] + nz * intendedNormal[2]) / length
+    : Number.NEGATIVE_INFINITY;
+}
+
+function isDirectionallyDescribedSurface(surface) {
+  return /anterior|posterior|dorsal|palmar|lateral|medial|back|scapular|gluteal|sacral|occiput|temple|brow|forehead|face|cheek|jaw|nose|ear|neck|chest|abdomen/i.test(surface || "");
+}
+
+function isLimbSurface(surface) {
+  return /upper-arm|forearm|elbow|wrist|hand|palm|finger|thumb|thigh|leg|knee|ankle|foot|toe/i.test(surface || "");
+}
+
+function isProjectionMorphologicallyCompatible(sourcePosition, projectedPosition, surface) {
+  const [sourceX, sourceY] = sourcePosition;
+  const [projectedX, projectedY] = projectedPosition;
+
+  // Do not use an automatic normal correction if it crosses the anatomical
+  // midline or moves to a substantially different longitudinal level. A
+  // route-specific reviewer can still author an explicit constraint for an
+  // exceptional point.
+  if (sourceX * projectedX < -0.000001) return false;
+  if (Math.abs(sourceY - projectedY) > AUTO_DIRECTION_GUARD_MAX_VERTICAL_DRIFT) return false;
+
+  // On a limb, a candidate that collapses markedly toward the torso is the
+  // common signature of a chest/arm or thigh/torso nearest-surface error.
+  if (isLimbSurface(surface) && Math.abs(sourceX) > 0.10) {
+    return Math.abs(projectedX) >= Math.abs(sourceX) * 0.65;
+  }
+  return true;
+}
+
+function closestDirectionallyCompatibleProjection(point, surface, intendedNormal, minimumNormalAlignment, compatibilityFilter = null) {
   const [px, py, pz] = point;
   const { positions, indices } = surface;
+  const scratch = {};
+  let bestDistanceSquared = Number.POSITIVE_INFINITY;
+  let bestTriangle = -1;
+  let bestX = 0;
+  let bestY = 0;
+  let bestZ = 0;
+  let bestFirst = 0;
+  let bestSecond = 0;
+  let bestThird = 0;
+  let bestAlignment = Number.NEGATIVE_INFINITY;
+
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const firstIndex = indices[offset] * 3;
+    const secondIndex = indices[offset + 1] * 3;
+    const thirdIndex = indices[offset + 2] * 3;
+    closestPointOnTriangle(
+      px,
+      py,
+      pz,
+      positions[firstIndex],
+      positions[firstIndex + 1],
+      positions[firstIndex + 2],
+      positions[secondIndex],
+      positions[secondIndex + 1],
+      positions[secondIndex + 2],
+      positions[thirdIndex],
+      positions[thirdIndex + 1],
+      positions[thirdIndex + 2],
+      scratch,
+    );
+    const candidateDistanceSquared = (px - scratch.x) ** 2 + (py - scratch.y) ** 2 + (pz - scratch.z) ** 2;
+    if (candidateDistanceSquared >= bestDistanceSquared) continue;
+
+    const triangle = offset / 3;
+    const candidateAlignment = triangleNormalAlignment(
+      surface,
+      triangle,
+      scratch.first,
+      scratch.second,
+      scratch.third,
+      intendedNormal,
+    );
+    if (candidateAlignment < minimumNormalAlignment) continue;
+    if (compatibilityFilter && !compatibilityFilter([scratch.x, scratch.y, scratch.z])) continue;
+
+    bestDistanceSquared = candidateDistanceSquared;
+    bestTriangle = triangle;
+    bestX = scratch.x;
+    bestY = scratch.y;
+    bestZ = scratch.z;
+    bestFirst = scratch.first;
+    bestSecond = scratch.second;
+    bestThird = scratch.third;
+    bestAlignment = candidateAlignment;
+  }
+
+  if (bestTriangle < 0) return null;
+  return {
+    triangle: bestTriangle,
+    position: [bestX, bestY, bestZ],
+    barycentric: [bestFirst, bestSecond, bestThird],
+    distanceSquared: bestDistanceSquared,
+    alignment: bestAlignment,
+  };
+}
+
+function closestSurfaceProjection(point, surface, projectionOptions = {}) {
+  const [px, py, pz] = point;
+  const { positions, indices } = surface;
+  const intendedNormal = Array.isArray(projectionOptions.intendedNormal)
+    ? normalise(projectionOptions.intendedNormal)
+    : null;
+  const requestedMinimumNormalAlignment = Number(projectionOptions.minimumNormalAlignment);
+  const minimumNormalAlignment = intendedNormal && Number.isFinite(requestedMinimumNormalAlignment)
+    ? Math.min(0.98, Math.max(-0.98, requestedMinimumNormalAlignment))
+    : null;
+  const automaticDirectionGuardRequested = Boolean(
+    intendedNormal
+    && minimumNormalAlignment === null
+    && projectionOptions.automaticDirectionGuard,
+  );
   const scratch = {};
   let bestDistanceSquared = Number.POSITIVE_INFINITY;
   let bestTriangle = -1;
@@ -241,30 +457,75 @@ function closestSurfaceProjection(point, surface) {
   }
   if (bestTriangle < 0) throw new Error(`Unable to project anchor ${point}.`);
 
-  const firstIndex = indices[bestTriangle * 3];
-  const secondIndex = indices[bestTriangle * 3 + 1];
-  const thirdIndex = indices[bestTriangle * 3 + 2];
-  let nx;
-  let ny;
-  let nz;
-  if (surface.normals) {
-    nx = surface.normals[firstIndex * 3] * bestFirst + surface.normals[secondIndex * 3] * bestSecond + surface.normals[thirdIndex * 3] * bestThird;
-    ny = surface.normals[firstIndex * 3 + 1] * bestFirst + surface.normals[secondIndex * 3 + 1] * bestSecond + surface.normals[thirdIndex * 3 + 1] * bestThird;
-    nz = surface.normals[firstIndex * 3 + 2] * bestFirst + surface.normals[secondIndex * 3 + 2] * bestSecond + surface.normals[thirdIndex * 3 + 2] * bestThird;
-  } else {
-    const ax = positions[firstIndex];
-    const ay = positions[firstIndex + 1];
-    const az = positions[firstIndex + 2];
-    nx = (positions[secondIndex + 1] - ay) * (positions[thirdIndex + 2] - az) - (positions[secondIndex + 2] - az) * (positions[thirdIndex + 1] - ay);
-    ny = (positions[secondIndex + 2] - az) * (positions[thirdIndex] - ax) - (positions[secondIndex] - ax) * (positions[thirdIndex + 2] - az);
-    nz = (positions[secondIndex] - ax) * (positions[thirdIndex + 1] - ay) - (positions[secondIndex + 1] - ay) * (positions[thirdIndex] - ax);
+  let selection = "nearest-triangle";
+  const nearestDistance = Math.sqrt(bestDistanceSquared);
+  const nearestNormalAlignment = intendedNormal
+    ? triangleNormalAlignment(surface, bestTriangle, bestFirst, bestSecond, bestThird, intendedNormal)
+    : null;
+  let normalAlignment = nearestNormalAlignment;
+  let automaticDirectionGuard = automaticDirectionGuardRequested ? "not-needed" : "not-requested";
+
+  // Only pay for a second pass when the nearest surface faces away from the
+  // source route's intended side. This is important for close anterior and
+  // posterior surfaces, as well as the medial/lateral faces of an arm.
+  if (intendedNormal && minimumNormalAlignment !== null && normalAlignment < minimumNormalAlignment) {
+    const constrained = closestDirectionallyCompatibleProjection(
+      point,
+      surface,
+      intendedNormal,
+      minimumNormalAlignment,
+    );
+    if (constrained) {
+      bestDistanceSquared = constrained.distanceSquared;
+      bestTriangle = constrained.triangle;
+      [bestX, bestY, bestZ] = constrained.position;
+      [bestFirst, bestSecond, bestThird] = constrained.barycentric;
+      normalAlignment = constrained.alignment;
+      selection = "normal-constrained-triangle";
+    } else {
+      selection = "nearest-triangle-normal-fallback";
+    }
+  } else if (automaticDirectionGuardRequested && normalAlignment < AUTO_DIRECTION_GUARD_TRIGGER) {
+    const guarded = closestDirectionallyCompatibleProjection(
+      point,
+      surface,
+      intendedNormal,
+      AUTO_DIRECTION_GUARD_MIN_ALIGNMENT,
+      (candidatePosition) => isProjectionMorphologicallyCompatible(
+        point,
+        candidatePosition,
+        projectionOptions.sourceSurface,
+      ),
+    );
+    if (guarded && Math.sqrt(guarded.distanceSquared) <= nearestDistance + AUTO_DIRECTION_GUARD_MAX_EXTRA_DISTANCE) {
+      bestDistanceSquared = guarded.distanceSquared;
+      bestTriangle = guarded.triangle;
+      [bestX, bestY, bestZ] = guarded.position;
+      [bestFirst, bestSecond, bestThird] = guarded.barycentric;
+      normalAlignment = guarded.alignment;
+      selection = "automatic-direction-guard";
+      automaticDirectionGuard = "applied";
+    } else {
+      selection = "nearest-triangle-auto-direction-guard-rejected";
+      automaticDirectionGuard = guarded
+        ? "rejected-directional-surface-too-far"
+        : "rejected-no-compatible-directional-surface";
+    }
   }
+
+  const normal = triangleSurfaceNormal(surface, bestTriangle, bestFirst, bestSecond, bestThird);
   return {
     position: [round(bestX), round(bestY), round(bestZ)],
-    normal: normalise([nx, ny, nz]),
+    normal,
     triangle: bestTriangle,
     barycentric: [round(bestFirst), round(bestSecond), round(bestThird)],
     distance: round(Math.sqrt(bestDistanceSquared)),
+    nearestDistance: round(nearestDistance),
+    nearestNormalAlignment: nearestNormalAlignment === null ? null : round(nearestNormalAlignment),
+    normalAlignment: normalAlignment === null ? null : round(normalAlignment),
+    minimumNormalAlignment,
+    automaticDirectionGuard,
+    selection,
   };
 }
 
@@ -278,16 +539,34 @@ function closestSurfaceProjection(point, surface) {
  * time. That makes the eventual reviewer work happen once per anatomical
  * route while still producing concrete left/right marker instances.
  */
-function node(position, normal, surface, landmark) {
+function node(position, normal, surface, landmark, projection = null) {
   return {
     position,
     normal: normalise(normal),
     surface,
     landmark,
+    ...(projection ? { projection } : {}),
   };
 }
 
 const n = node;
+
+// A handful of landmarks need a point-level surface target rather than the
+// route-wide interpolation that is sufficient for the long, straight portions
+// of a channel.  These are authored directly in the current Skin_Body local
+// coordinate system (not in the historical template coordinate system used by
+// ROUTE_TEMPLATES).  Each target was checked against the point's written
+// location and reference image, then against the rendered mesh: the nearby
+// triangle must be on the named anatomical side rather than merely the closest
+// triangle through a limb, a joint fold, or the thorax.
+function surfaceCalibrationNode(position, normal, surface, landmark) {
+  return {
+    ...node(position, normal, surface, landmark),
+    coordinateSpace: "Skin_Body-local",
+  };
+}
+
+const sn = surfaceCalibrationNode;
 
 // The product brief supplied this one comparison layout. These are still
 // estimated mesh-space positions, not a clinical calibration. Keeping the
@@ -303,6 +582,97 @@ const EXAMPLE_COMPARISON_OVERRIDES = {
     right: n([0.275, 1.325, 0.153], [0.68, 0.02, 0.74], "lateral-chest", "fifth intercostal comparison field"),
   },
 };
+
+// Asset-left point targets. `pointCalibrationOverrideFor` mirrors each one
+// for the anatomical right side.  These are deliberately limited to places
+// where the original route fraction either landed on a neighbouring surface
+// (for example a medial elbow instead of the radial/ulnar recess) or collapsed
+// two source-distinct points onto one Skin_Body triangle neighbourhood.
+// They remain estimated surface fits pending clinical approval; `sourceEvidence`
+// continues to carry the exact figure and location text for every point.
+const SURFACE_CALIBRATION_OVERRIDES = {
+  // Mouth/jaw and lower chest: retain the source-distinct locations after the
+  // rounded face and chest surface are projected.
+  ST4: sn([-0.045, 1.640, 0.090], [-0.30, 0.20, 0.93], "anterior-cheek", "lateral oral commissure"),
+  ST5: sn([-0.070, 1.620, 0.070], [-0.83, -0.31, 0.46], "anterolateral-jaw", "masseter lower-border recess"),
+  ST18: sn([-0.120, 1.325, 0.130], [-0.50, 0, 0.85], "anterior-lateral-chest", "fifth intercostal field below nipple"),
+  ST19: sn([-0.120, 1.280, 0.130], [-0.50, 0, 0.85], "anterior-lateral-chest", "upper abdominal field, six cun above umbilicus"),
+
+  // The prior distal lower-leg controls sat forward of the skin and projected
+  // through the tibia/ankle. These fit the lateral anterior tibial contour at
+  // the documented longitudinal sequence from knee to lateral malleolus.
+  ST35: sn([-0.130, 0.400, 0.000], [-0.70, 0, 0.70], "lateral-knee", "lateral patellar recess"),
+  ST36: sn([-0.140, 0.360, 0.000], [-0.70, 0, 0.70], "anterolateral-leg", "tibialis anterior, three cun below knee"),
+  ST37: sn([-0.140, 0.320, 0.000], [-0.70, 0, 0.70], "anterolateral-leg", "upper lower-leg lateral line"),
+  ST38: sn([-0.140, 0.280, 0.000], [-0.70, 0, 0.70], "anterolateral-leg", "lower lower-leg lateral line"),
+  ST39: sn([-0.140, 0.230, 0.000], [-0.70, 0, 0.70], "anterolateral-leg", "three cun inferior to ST37"),
+  ST40: sn([-0.130, 0.200, 0.000], [-0.70, 0, 0.70], "anterolateral-leg", "lateral lower-leg, one cun lateral to ST38"),
+  ST43: sn([-0.090, 0.040, 0.126], [0, 1, 0], "dorsal-foot", "second/third metatarsal recess"),
+  ST44: sn([-0.100, 0.020, 0.130], [0, 1, 0], "dorsal-toe", "second/third toe web recess"),
+  ST45: sn([-0.100, 0.025, 0.140], [0, 1, 0], "second-toe", "second toe lateral nail corner"),
+
+  // Elbow/forearm surface side: avoid a nearest inner-arm result for radial
+  // LU5 and preserve the distinct medial biceps-tendon recesses for HT/PC.
+  LU5: sn([-0.250, 1.265, 0.015], [-0.70, 0, 0.70], "anterior-lateral-elbow", "radial biceps-tendon recess"),
+  LU6: sn([-0.290, 1.160, 0.020], [-0.55, 0.10, 0.83], "anterior-lateral-forearm", "radial forearm, five cun below LU5"),
+  LU11: sn([-0.310, 0.780, 0.080], [-0.70, 0.30, 0.60], "thumb", "radial thumbnail corner"),
+  HT3: sn([-0.190, 1.250, 0.010], [0.65, 0, 0.76], "anterior-medial-elbow", "ulnar end of antecubital crease"),
+  HT4: sn([-0.200, 1.180, 0.000], [0.65, 0, 0.76], "anterior-medial-forearm", "ulnar palmar forearm, 1.5 cun above HT7"),
+  HT5: sn([-0.200, 1.145, 0.000], [0.65, 0, 0.76], "anterior-medial-forearm", "ulnar palmar forearm, one cun above HT7"),
+  PC2: sn([-0.170, 1.350, 0.000], [0.72, -0.35, 0.60], "axillary-fold", "medial biceps below anterior axillary fold"),
+  PC3: sn([-0.190, 1.250, 0.010], [0.65, 0, 0.76], "anterior-medial-elbow", "medial biceps-tendon recess"),
+  PC4: sn([-0.190, 1.200, 0.000], [0.65, 0, 0.76], "anterior-medial-forearm", "palmar forearm between flexor tendons"),
+  LI6: sn([-0.300, 1.125, -0.010], [-0.90, 0.20, 0.39], "radial-wrist", "radial forearm line above LI5"),
+  LI12: sn([-0.270, 1.250, -0.040], [-0.70, 0, -0.70], "lateral-upper-arm", "lateral upper arm, three cun above LI11"),
+  LI13: sn([-0.250, 1.300, -0.050], [-0.70, 0, -0.70], "lateral-upper-arm", "lateral upper arm, seven cun above LI11"),
+  LI14: sn([-0.250, 1.338, 0.010], [-0.70, 0, 0.70], "lateral-upper-arm", "anterior deltoid border"),
+  LI16: sn([-0.200, 1.420, -0.070], [-0.65, 0.13, -0.75], "posterior-shoulder", "acromion/scapular-spine recess"),
+  SI5: sn([-0.300, 1.105, -0.050], [-0.70, 0, -0.70], "dorsoulnar-wrist", "ulnar end of the dorsal wrist crease"),
+  SI6: sn([-0.300, 1.130, -0.050], [-0.70, 0, -0.70], "dorsoulnar-wrist", "radial edge above the ulnar styloid recess"),
+  SI9: sn([-0.220, 1.360, -0.050], [-0.70, 0, -0.70], "posterior-upper-arm", "one cun superior to posterior axillary fold"),
+  TE4: sn([-0.281, 1.075, 0.008], [0.45, -0.01, -0.89], "dorsal-wrist", "dorsal wrist crease between third/fourth metacarpals"),
+  TE5: sn([-0.300, 1.110, -0.030], [0, 0, -1], "posterolateral-forearm", "dorsal forearm two cun above wrist"),
+  TE6: sn([-0.300, 1.140, -0.050], [-0.70, 0, -0.70], "posterolateral-forearm", "dorsal forearm three cun above wrist"),
+  TE7: sn([-0.290, 1.170, -0.050], [-0.70, 0, -0.70], "posterolateral-forearm", "ulnar dorsal forearm, one cun medial to TE6"),
+  TE13: sn([-0.220, 1.300, -0.070], [-0.70, 0, -0.70], "posterolateral-upper-arm", "posterior deltoid border"),
+  TE15: sn([-0.200, 1.360, -0.060], [-0.70, 0, -0.70], "posterior-shoulder", "posterior superior shoulder between GB21 and SI13"),
+  TE17: sn([-0.075, 1.670, -0.050], [-0.80, 0, -0.60], "posterior-auricular", "mastoid recess posterior to the earlobe"),
+  TE19: sn([-0.075, 1.670, -0.050], [-0.80, 0, -0.60], "posterior-auricular", "upper third of posterior auricular curve"),
+
+  // Scalp, posterior neck, sacral/popliteal, and lateral ankle/foot targets.
+  BL4: sn([-0.055, 1.740, 0.090], [-0.63, 0.25, 0.74], "frontal-scalp", "frontal hairline medial third"),
+  BL30: sn([-0.055, 0.790, -0.100], [-0.40, 0, -0.90], "sacral", "fourth sacral foramen level"),
+  BL40: sn([-0.090, 0.380, -0.080], [0, 0, -1], "popliteal", "popliteal crease center"),
+  BL59: sn([-0.140, 0.210, -0.080], [-0.50, 0, -0.86], "posterolateral-leg", "three cun superior to BL60"),
+  BL60: sn([-0.140, 0.130, -0.080], [-0.50, 0, -0.86], "posterolateral-leg", "lateral malleolus/Achilles recess"),
+  BL61: sn([-0.140, 0.090, -0.080], [-0.50, 0, -0.86], "posterolateral-ankle", "inferior lateral calcaneal recess"),
+  BL64: sn([-0.160, 0.045, 0.100], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsal tuberosity border"),
+  BL65: sn([-0.160, 0.030, 0.120], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsophalangeal border"),
+  GB11: sn([-0.073, 1.692, -0.055], [-0.93, -0.13, -0.35], "posterior-auricular", "mastoid base posterior to ear"),
+  GB18: sn([-0.060, 1.760, -0.030], [-0.70, 0.60, -0.30], "parietal-scalp", "superior temporal/parietal scalp"),
+  GB19: sn([-0.070, 1.720, -0.060], [-0.80, 0.20, -0.55], "posterior-auricular", "occipital field, 1.5 cun superior to GB20"),
+  GB20: sn([-0.080, 1.540, -0.090], [-0.40, 0.20, -0.90], "posterior-neck", "suboccipital trapezius/SCM recess"),
+  GB28: sn([-0.200, 0.895, -0.020], [-1, 0, 0], "lateral-hip", "anterior iliac crest lateral field"),
+  GB42: sn([-0.120, 0.040, 0.120], [0, 1, 0], "dorsal-foot", "fourth/fifth metatarsal dorsal field"),
+  GB43: sn([-0.130, 0.025, 0.130], [0, 1, 0], "dorsal-foot", "fourth/fifth toe web recess"),
+
+  // Medial/lateral foot borders are particularly sensitive to an interior
+  // nearest-point snap because the raw source point sits close to both the
+  // dorsal and plantar triangles.
+  SP3: sn([-0.100, 0.040, 0.100], [0.77, -0.57, -0.29], "medial-foot", "first metatarsal head medial plantar border"),
+  SP4: sn([-0.100, 0.065, 0.060], [0.90, -0.38, -0.22], "medial-ankle", "first metatarsal base medial border"),
+  SP13: sn([-0.130, 0.820, 0.100], [-0.40, 0, 0.90], "lower-abdomen", "four cun lateral to the midline, 0.7 cun superior to SP12"),
+  KI2: sn([-0.100, 0.040, 0.100], [0.77, -0.57, -0.29], "medial-plantar-foot", "navicular tuberosity inferior border"),
+  LR7: sn([-0.080, 0.400, -0.040], [0.70, 0, -0.70], "posteromedial-knee", "one cun posterior to SP9 at the medial knee"),
+  LR1: sn([-0.120, 0.020, 0.110], [-0.86, -0.38, -0.34], "great-toe", "lateral great-toe nail corner"),
+};
+
+function pointCalibrationOverrideFor(pointId, side) {
+  const override = SURFACE_CALIBRATION_OVERRIDES[pointId];
+  if (!override) return null;
+  if (side === "right") return mirrorNode(override);
+  return override;
+}
 
 function range(start, end, routeId, keys) {
   return { start, end, routeId, keys };
@@ -320,15 +690,20 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "anterior chest to radial thumb",
     nodes: [
-      n([-0.20, 1.345, 0.238], [-0.52, 0.04, 0.86], "anterior-chest", "upper lateral chest"),
-      n([-0.27, 1.365, 0.165], [-0.72, 0.04, 0.69], "axillary-fold", "axillary margin"),
-      n([-0.38, 1.320, 0.045], [0.85, 0, 0.42], "medial-upper-arm", "medial biceps contour"),
-      n([-0.45, 1.290, 0.045], [0.82, 0, 0.57], "medial-upper-arm", "medial humeral contour"),
-      n([-0.50, 1.250, 0.040], [0.76, 0, 0.65], "medial-elbow", "antecubital region"),
-      n([-0.57, 1.200, 0.060], [0.72, 0, 0.69], "anterior-medial-forearm", "flexor surface"),
-      n([-0.665, 1.120, 0.110], [0.80, 0, 0.60], "radial-wrist", "radial wrist contour"),
-      n([-0.720, 1.070, 0.160], [0.22, 0, 0.98], "thenar-palm", "thenar eminence"),
-      n([-0.750, 1.030, 0.200], [-0.12, 0, 0.99], "thumb", "thumb radial margin"),
+      // `LocationAndIndications.txt` and LU1–LU4 reference illustrations:
+      // LU2 is in the lateral infraclavicular/coracoid fossa; LU1 is directly
+      // one cun inferior; LU3–LU4 descend on the anterior-lateral (radial)
+      // biceps border from the anterior axillary fold.  These nodes are
+      // deliberately raised/lateralised for the arms-down BodyParts3D body.
+      n([-0.38, 1.440, 0.060], [-0.48, 0.05, 0.88], "infraclavicular-fossa", "first intercostal / LU2 inferior field", { minimumNormalAlignment: 0.62, sourceReferences: ["assets/images/LU/LU1.webp", "assets/references/LocationAndIndications.txt"] }),
+      n([-0.45, 1.480, 0.060], [-0.66, 0.07, 0.75], "deltopectoral-fossa", "lateral clavicle / coracoid field", { minimumNormalAlignment: 0.62, sourceReferences: ["assets/images/LU/LU2.webp", "assets/references/LocationAndIndications.txt"] }),
+      n([-0.50, 1.350, 0.000], [-0.90, 0, 0.35], "anterior-lateral-upper-arm", "radial biceps border below anterior axillary fold", { minimumNormalAlignment: 0.66, sourceReferences: ["assets/images/LU/LU3.webp", "assets/references/LocationAndIndications.txt"] }),
+      n([-0.55, 1.315, 0.040], [-0.90, 0, 0.35], "anterior-lateral-upper-arm", "radial biceps border, one cun inferior", { minimumNormalAlignment: 0.66, sourceReferences: ["assets/images/LU/LU4.webp", "assets/references/LocationAndIndications.txt"] }),
+      n([-0.49, 1.255, 0.145], [-0.20, -0.04, 0.98], "anterior-elbow", "antecubital biceps-tendon region"),
+      n([-0.54, 1.160, 0.030], [-0.30, 0, 0.95], "anterior-medial-forearm", "flexor surface"),
+      n([-0.59, 1.015, 0.055], [-0.75, 0, 0.66], "radial-wrist", "radial wrist contour"),
+      n([-0.71, 0.865, 0.100], [-0.55, 0, 0.84], "thenar-palm", "thenar eminence"),
+      n([-0.60, 0.780, 0.120], [-0.90, 0, 0.40], "thumb", "thumb radial nail field"),
     ],
   },
   LI_main: {
@@ -336,11 +711,11 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "index finger to face",
     nodes: [
-      n([-0.750, 1.020, 0.200], [0, 0, 1], "index-finger", "radial index fingertip"),
-      n([-0.735, 1.050, 0.165], [0, 0, 1], "dorsal-hand", "index ray"),
-      n([-0.720, 1.080, 0.135], [-0.30, 0, 0.95], "dorsal-hand", "first dorsal interosseous region"),
-      n([-0.665, 1.120, 0.090], [-0.52, 0, 0.85], "radial-wrist", "radial wrist"),
-      n([-0.580, 1.190, -0.010], [-0.45, 0, -0.89], "dorsolateral-forearm", "radial forearm"),
+      n([-0.640, 0.760, 0.140], [-0.40, 0, 0.92], "index-finger", "radial index nail corner"),
+      n([-0.650, 0.810, 0.150], [-0.34, 0, 0.94], "dorsal-hand", "index ray"),
+      n([-0.660, 0.890, 0.140], [-0.30, 0, 0.95], "dorsal-hand", "first dorsal interosseous region"),
+      n([-0.600, 1.080, 0.040], [-0.52, 0, 0.85], "radial-wrist", "radial dorsal wrist"),
+      n([-0.580, 1.190, -0.100], [-0.45, 0, -0.89], "dorsolateral-forearm", "radial forearm"),
       n([-0.505, 1.245, -0.040], [-0.50, 0, -0.86], "lateral-elbow", "lateral epicondyle region"),
       n([-0.430, 1.305, -0.005], [-0.55, 0, -0.83], "lateral-upper-arm", "lateral humeral contour"),
       n([-0.34, 1.360, 0.030], [-0.60, 0.08, 0.80], "shoulder", "deltoid/acromial region"),
@@ -369,9 +744,12 @@ const ROUTE_TEMPLATES = {
       n([-0.18, 0.430, 0.108], [-0.30, 0, 0.95], "anterior-knee", "patellar margin"),
       n([-0.23, 0.390, 0.110], [-0.58, 0, 0.81], "lateral-knee", "lateral patellar margin"),
       n([-0.22, 0.280, 0.108], [-0.54, 0, 0.84], "anterolateral-leg", "tibialis anterior region"),
-      n([-0.21, 0.100, 0.125], [-0.45, 0, 0.89], "anterior-ankle", "anterior ankle"),
-      n([-0.20, 0.060, 0.200], [-0.12, 0, 0.99], "dorsal-foot", "metatarsal surface"),
-      n([-0.19, 0.045, 0.300], [0, 0, 1], "second-toe", "second toe tip"),
+      // ST41–45: the source figures progress from the ankle over the second
+      // ray to the second-toe nail. Values are pre-fit template space; the
+      // resulting Skin_Body targets remain distinct at the distal toe.
+      n([-0.21, 0.075, 0.120], [-0.45, 0, 0.89], "anterior-ankle", "anterior ankle"),
+      n([-0.20, 0.040, 0.180], [-0.12, 0, 0.99], "dorsal-foot", "second metatarsal surface"),
+      n([-0.20, 0.020, 0.200], [-0.18, 0, 0.98], "second-toe", "second toe lateral nail field"),
     ],
   },
   SP_main: {
@@ -379,9 +757,11 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "medial great toe to lateral chest",
     nodes: [
-      n([-0.16, 0.045, 0.300], [0.20, 0, 0.98], "great-toe", "medial great toe"),
-      n([-0.14, 0.055, 0.200], [0.50, 0, 0.87], "medial-foot", "medial arch"),
-      n([-0.14, 0.090, 0.040], [0.76, 0, 0.65], "medial-ankle", "medial malleolus region"),
+      // SP1–5: hallux nail edge -> first ray -> medial malleolus. This avoids
+      // the prior SP1/SP2 collapse while retaining the medial source side.
+      n([-0.145, 0.018, 0.150], [0.28, 0, 0.96], "great-toe", "medial hallux nail field"),
+      n([-0.170, 0.040, 0.160], [0.52, -0.08, 0.85], "medial-foot", "first metatarsophalangeal / medial first ray"),
+      n([-0.170, 0.085, 0.050], [0.78, 0, 0.62], "medial-ankle", "medial malleolus region"),
       n([-0.13, 0.200, 0.015], [0.90, 0, 0.43], "medial-leg", "medial tibial contour"),
       n([-0.12, 0.390, 0.020], [0.92, 0, 0.39], "medial-knee", "medial tibial condyle region"),
       n([-0.105, 0.570, 0.040], [0.85, 0, 0.53], "medial-thigh", "adductor contour"),
@@ -401,11 +781,11 @@ const ROUTE_TEMPLATES = {
       n([-0.30, 1.360, 0.050], [0.18, 0, 0.98], "axillary-fold", "axillary center"),
       n([-0.40, 1.320, 0.045], [0.82, 0, 0.57], "medial-upper-arm", "medial biceps contour"),
       n([-0.50, 1.250, 0.040], [0.78, 0, 0.63], "medial-elbow", "medial elbow crease"),
-      n([-0.580, 1.200, 0.060], [0.72, 0, 0.69], "anterior-medial-forearm", "flexor surface"),
-      n([-0.660, 1.125, 0.110], [0.72, 0, 0.69], "ulnar-wrist", "ulnar wrist contour"),
-      n([-0.720, 1.070, 0.160], [0.06, 0, 1], "ulnar-palm", "hypothenar/palm"),
-      n([-0.750, 1.040, 0.185], [-0.10, 0, 1], "little-finger", "little finger ray"),
-      n([-0.765, 1.015, 0.200], [0, 0, 1], "little-finger", "little finger tip"),
+      n([-0.600, 1.200, 0.060], [-0.45, 0, 0.89], "anterior-medial-forearm", "flexor surface"),
+      n([-0.610, 1.080, 0.060], [-0.45, 0, 0.89], "ulnar-wrist", "ulnar palmar wrist"),
+      n([-0.700, 0.890, 0.130], [-0.50, 0, 0.86], "ulnar-palm", "hypothenar/palm"),
+      n([-0.740, 0.800, 0.140], [-0.65, 0, 0.76], "little-finger", "little finger ray"),
+      n([-0.750, 0.750, 0.140], [-0.70, 0, 0.70], "little-finger", "little finger nail field"),
     ],
   },
   SI_main: {
@@ -413,11 +793,11 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "little finger to ear",
     nodes: [
-      n([-0.765, 1.015, 0.200], [0, 0, 1], "little-finger", "little finger tip"),
-      n([-0.750, 1.040, 0.170], [0, 0, 1], "dorsal-hand", "ulnar hand"),
-      n([-0.720, 1.070, 0.120], [-0.40, 0, 0.92], "dorsal-hand", "ulnar carpus"),
-      n([-0.665, 1.120, 0.055], [-0.52, 0, -0.85], "dorsoulnar-wrist", "ulnar wrist"),
-      n([-0.580, 1.190, -0.035], [-0.45, 0, -0.89], "posterolateral-forearm", "ulnar extensor surface"),
+      n([-0.750, 0.750, 0.140], [-0.70, 0, 0.70], "little-finger", "ulnar little-finger nail field"),
+      n([-0.730, 0.810, 0.150], [-0.65, 0, 0.76], "dorsal-hand", "ulnar hand"),
+      n([-0.700, 0.880, 0.140], [-0.60, 0, 0.80], "dorsal-hand", "ulnar carpus"),
+      n([-0.620, 1.080, 0.030], [-0.55, 0, 0.83], "dorsoulnar-wrist", "ulnar dorsal wrist"),
+      n([-0.600, 1.130, -0.030], [-0.45, 0, -0.89], "posterolateral-forearm", "ulnar extensor surface"),
       n([-0.505, 1.245, -0.055], [-0.25, 0, -0.97], "posterior-elbow", "olecranon region"),
       n([-0.425, 1.305, -0.055], [-0.44, 0, -0.90], "posterior-upper-arm", "triceps contour"),
       n([-0.33, 1.380, -0.015], [-0.62, 0.08, -0.78], "posterior-shoulder", "posterior deltoid"),
@@ -474,9 +854,11 @@ const ROUTE_TEMPLATES = {
       n([-0.22, 0.310, -0.090], [-0.42, 0, -0.91], "posterior-leg", "gastrocnemius contour"),
       n([-0.215, 0.140, -0.055], [-0.36, 0, -0.93], "posterolateral-leg", "achilles/lateral calf region"),
       n([-0.21, 0.090, 0.000], [-0.42, 0, -0.91], "lateral-ankle", "lateral malleolus"),
-      n([-0.22, 0.060, 0.100], [-0.45, 0, 0.89], "lateral-foot", "lateral foot border"),
-      n([-0.22, 0.045, 0.200], [-0.22, 0, 0.98], "lateral-foot", "fifth metatarsal region"),
-      n([-0.24, 0.040, 0.300], [-0.16, 0, 0.99], "fifth-toe", "lateral fifth toe"),
+      // BL63–67: separate fifth-ray points from the fifth-toe nail edge,
+      // following the documented progression from lateral foot to little toe.
+      n([-0.250, 0.055, 0.130], [-0.52, 0, 0.85], "lateral-foot", "fifth metatarsal base / lateral foot border"),
+      n([-0.290, 0.035, 0.160], [-0.62, 0, 0.78], "lateral-foot", "fifth metatarsophalangeal region"),
+      n([-0.310, 0.020, 0.160], [-0.72, 0, 0.69], "fifth-toe", "lateral fifth-toe nail field"),
     ],
   },
   KI_main: {
@@ -485,7 +867,7 @@ const ROUTE_TEMPLATES = {
     label: "plantar foot to clavicle",
     nodes: [
       n([-0.19, 0.008, 0.140], [0, -1, 0], "plantar-foot", "plantar arch"),
-      n([-0.17, 0.040, 0.210], [0.32, -0.20, 0.93], "medial-plantar-foot", "medial plantar arch"),
+      n([-0.17, 0.032, 0.160], [0.35, -0.28, 0.89], "medial-plantar-foot", "medial plantar arch"),
       n([-0.15, 0.090, 0.020], [0.80, 0, 0.60], "medial-ankle", "posterior medial malleolus"),
       n([-0.135, 0.220, 0.015], [0.90, 0, 0.44], "medial-leg", "medial tibial border"),
       n([-0.13, 0.340, 0.020], [0.92, 0, 0.39], "medial-leg", "medial calf"),
@@ -510,9 +892,9 @@ const ROUTE_TEMPLATES = {
       n([-0.40, 1.320, 0.050], [0.82, 0, 0.57], "medial-upper-arm", "medial biceps field"),
       n([-0.50, 1.250, 0.045], [0.78, 0, 0.63], "medial-elbow", "antecubital field"),
       n([-0.580, 1.200, 0.065], [0.72, 0, 0.69], "anterior-forearm", "palmar forearm"),
-      n([-0.660, 1.125, 0.115], [0.52, 0, 0.85], "palmar-wrist", "palmar wrist"),
-      n([-0.720, 1.070, 0.165], [0, 0, 1], "palm", "central palm"),
-      n([-0.755, 1.015, 0.200], [0, 0, 1], "middle-finger", "middle fingertip"),
+      n([-0.600, 1.080, 0.070], [0, 0, 1], "palmar-wrist", "palmar wrist"),
+      n([-0.670, 0.870, 0.130], [0, 0, 1], "palm", "central palm"),
+      n([-0.670, 0.750, 0.140], [0, 0, 1], "middle-finger", "middle-finger nail field"),
     ],
   },
   TE_main: {
@@ -520,11 +902,11 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "ring finger to temple",
     nodes: [
-      n([-0.755, 1.015, 0.200], [0, 0, 1], "ring-finger", "ring finger tip"),
-      n([-0.745, 1.040, 0.170], [0, 0, 1], "dorsal-hand", "ring finger ray"),
-      n([-0.720, 1.070, 0.120], [-0.42, 0, 0.91], "dorsal-hand", "dorsal carpus"),
-      n([-0.665, 1.120, 0.050], [-0.48, 0, -0.88], "dorsal-wrist", "dorsal wrist"),
-      n([-0.580, 1.190, -0.040], [-0.48, 0, -0.88], "posterolateral-forearm", "extensor surface"),
+      n([-0.700, 0.750, 0.140], [0, 0, -1], "ring-finger", "ring finger nail field"),
+      n([-0.680, 0.810, 0.150], [0, 0, -1], "dorsal-hand", "ring finger ray"),
+      n([-0.660, 0.880, 0.140], [-0.42, 0, -0.91], "dorsal-hand", "dorsal carpus"),
+      n([-0.620, 1.080, 0.030], [-0.48, 0, -0.88], "dorsal-wrist", "dorsal wrist"),
+      n([-0.610, 1.140, -0.030], [-0.48, 0, -0.88], "posterolateral-forearm", "extensor surface"),
       n([-0.505, 1.245, -0.050], [-0.34, 0, -0.94], "posterior-elbow", "olecranon/lateral elbow"),
       n([-0.425, 1.305, -0.045], [-0.48, 0, -0.88], "posterolateral-upper-arm", "triceps/deltoid field"),
       n([-0.33, 1.390, -0.010], [-0.70, 0.06, -0.71], "posterior-shoulder", "acromial field"),
@@ -551,8 +933,8 @@ const ROUTE_TEMPLATES = {
       n([-0.26, 0.390, 0.040], [-0.92, 0, 0.39], "lateral-knee", "fibular head/knee field"),
       n([-0.25, 0.300, 0.020], [-0.95, 0, 0.31], "lateral-leg", "fibular line"),
       n([-0.245, 0.080, 0.020], [-0.90, 0, 0.44], "lateral-ankle", "lateral malleolus"),
-      n([-0.23, 0.050, 0.160], [-0.45, 0, 0.89], "dorsal-foot", "fourth metatarsal line"),
-      n([-0.22, 0.040, 0.290], [-0.22, 0, 0.98], "fourth-toe", "fourth toe tip"),
+      n([-0.250, 0.040, 0.170], [-0.45, 0, 0.89], "dorsal-foot", "fourth metatarsal line"),
+      n([-0.260, 0.020, 0.200], [-0.48, 0, 0.88], "fourth-toe", "fourth toe lateral nail field"),
     ],
   },
   LR_main: {
@@ -560,9 +942,11 @@ const ROUTE_TEMPLATES = {
     sideMode: "bilateral",
     label: "lateral great toe to sixth intercostal field",
     nodes: [
-      n([-0.22, 0.040, 0.300], [-0.18, 0, 0.98], "great-toe", "lateral great toe"),
-      n([-0.21, 0.050, 0.200], [-0.45, 0, 0.89], "dorsal-foot", "first metatarsal line"),
-      n([-0.20, 0.090, 0.020], [-0.75, 0, 0.66], "anterior-ankle", "anterior medial ankle"),
+      // LR1–3: lateral hallux nail edge -> first interspace -> dorsal first/
+      // second metatarsal field, rather than a single generic forefoot point.
+      n([-0.145, 0.020, 0.150], [-0.25, 0, 0.97], "great-toe", "lateral hallux nail field"),
+      n([-0.200, 0.040, 0.160], [-0.36, 0, 0.93], "dorsal-foot", "first interspace / first metatarsal line"),
+      n([-0.210, 0.075, 0.100], [-0.32, 0, 0.95], "anterior-ankle", "dorsal first/second metatarsal field"),
       n([-0.16, 0.240, 0.020], [0.86, 0, 0.51], "medial-leg", "medial tibial field"),
       n([-0.14, 0.400, 0.020], [0.90, 0, 0.44], "medial-knee", "medial knee"),
       n([-0.12, 0.650, 0.030], [0.82, 0, 0.57], "medial-thigh", "adductor field"),
@@ -614,7 +998,11 @@ const ROUTE_TEMPLATES = {
 };
 
 const MERIDIAN_PLANS = {
-  LU: { sideMode: "bilateral", ranges: [range(1, 11, "LU_main", [[1, 0], [2, 0.125], [3, 0.25], [5, 0.375], [6, 0.5], [8, 0.625], [10, 0.75], [11, 1]])] },
+  // The former key plan skipped LU4 and consequently made LU5–LU10 each
+  // inherit the preceding landmark.  These progress values preserve the
+  // documented LU1–LU5 chest/upper-arm/elbow sequence and keep the wrist and
+  // thenar landmarks distinct on the arms-down reference model.
+  LU: { sideMode: "bilateral", ranges: [range(1, 11, "LU_main", [[1, 0], [2, 0.125], [3, 0.25], [4, 0.375], [5, 0.5], [6, 0.625], [7, 0.69], [8, 0.73], [9, 0.75], [10, 0.875], [11, 1]])] },
   LI: { sideMode: "bilateral", ranges: [range(1, 20, "LI_main", [[1, 0], [4, 0.182], [5, 0.273], [10, 0.455], [15, 0.636], [18, 0.909], [20, 1]])] },
   ST: { sideMode: "bilateral", ranges: [range(1, 45, "ST_main", [[1, 0], [7, 0.125], [9, 0.188], [12, 0.25], [18, 0.313], [25, 0.438], [30, 0.563], [35, 0.75], [41, 0.875], [45, 1]])] },
   SP: { sideMode: "bilateral", ranges: [range(1, 21, "SP_main", [[1, 0], [5, 0.182], [10, 0.364], [15, 0.727], [18, 0.909], [21, 1]])] },
@@ -629,7 +1017,10 @@ const MERIDIAN_PLANS = {
     ],
   },
   KI: { sideMode: "bilateral", ranges: [range(1, 27, "KI_main", [[1, 0], [3, 0.154], [10, 0.385], [16, 0.692], [21, 0.846], [27, 1]])] },
-  PC: { sideMode: "bilateral", ranges: [range(1, 9, "PC_main", [[1, 0], [3, 0.286], [4, 0.429], [7, 0.714], [9, 1]])] },
+  // PC2 (axillary fold), PC3 (elbow), PC7 (palmar wrist), PC8 (palm), and
+  // PC9 (middle-finger tip) each receive their own route landmark rather
+  // than inheriting the preceding arm segment.
+  PC: { sideMode: "bilateral", ranges: [range(1, 9, "PC_main", [[1, 0], [2, 0.143], [3, 0.429], [4, 0.571], [5, 0.62], [6, 0.67], [7, 0.714], [8, 0.857], [9, 1]])] },
   TE: { sideMode: "bilateral", ranges: [range(1, 23, "TE_main", [[1, 0], [4, 0.30], [6, 0.40], [10, 0.50], [14, 0.60], [17, 0.70], [23, 1]])] },
   GB: { sideMode: "bilateral", ranges: [range(1, 44, "GB_main", [[1, 0], [14, 0.214], [21, 0.357], [29, 0.571], [34, 0.714], [40, 0.857], [44, 1]])] },
   LR: { sideMode: "bilateral", ranges: [range(1, 14, "LR_main", [[1, 0], [4, 0.333], [8, 0.667], [11, 0.889], [14, 1]])] },
@@ -666,11 +1057,13 @@ function anchorAt(nodes, fraction) {
   const localFraction = target - lowerIndex;
   const lower = nodes[lowerIndex];
   const upper = nodes[upperIndex];
+  const metadataNode = localFraction < 0.5 ? lower : upper;
   return {
     position: lerpVector(lower.position, upper.position, localFraction).map(round),
     normal: normalise(lerpVector(lower.normal, upper.normal, localFraction)),
-    surface: localFraction < 0.5 ? lower.surface : upper.surface,
-    landmark: localFraction < 0.5 ? lower.landmark : upper.landmark,
+    surface: metadataNode.surface,
+    landmark: metadataNode.landmark,
+    ...(metadataNode.projection ? { projection: metadataNode.projection } : {}),
   };
 }
 
@@ -705,17 +1098,30 @@ function routeAssignment(code, pointNumber) {
 function makeInstance(point, assignment, side) {
   const template = ROUTE_TEMPLATES[assignment.range.routeId];
   const routeNodes = routePointsForSide(template, side);
-  const override = EXAMPLE_COMPARISON_OVERRIDES[point.id]?.[side];
-  const anchored = override ? fitRouteNodeToModel(override) : anchorAt(routeNodes, assignment.routeFraction);
+  const calibrationOverride = pointCalibrationOverrideFor(point.id, side);
+  const comparisonOverride = EXAMPLE_COMPARISON_OVERRIDES[point.id]?.[side];
+  const anchored = calibrationOverride
+    ? calibrationOverride
+    : comparisonOverride
+      ? fitRouteNodeToModel(comparisonOverride)
+      : anchorAt(routeNodes, assignment.routeFraction);
   const sideSuffix = side === "left" ? "L" : side === "right" ? "R" : "M";
   const rawAnchor = {
     position: anchored.position,
     normal: anchored.normal,
     surface: anchored.surface,
     landmark: anchored.landmark,
+    ...(anchored.coordinateSpace ? { coordinateSpace: anchored.coordinateSpace } : {}),
+    ...(anchored.projection ? { projection: anchored.projection } : {}),
     status: "estimated",
     reviewStatus: "needs-anatomical-and-model-fit-review",
-    provenance: override ? "user-specified-comparison-layout" : "route-template-interpolation",
+    provenance: calibrationOverride
+      ? "point-level-surface-calibration-with-source-evidence"
+      : comparisonOverride
+        ? "user-specified-comparison-layout"
+        : anchored.projection
+          ? "route-template-interpolation-with-reference-calibration"
+          : "route-template-interpolation",
   };
   return {
     instanceId: `${point.id}:${sideSuffix}`,
@@ -732,12 +1138,99 @@ function makeInstance(point, assignment, side) {
   };
 }
 
+function attachmentAuditFor(rawAnchor, projection) {
+  const [rawX, rawY, rawZ] = rawAnchor.position;
+  const [anchorX, anchorY, anchorZ] = projection.position;
+  const flags = [];
+  const lateralShift = anchorX - rawX;
+  const verticalShift = anchorY - rawY;
+  const anteriorPosteriorShift = anchorZ - rawZ;
+  const normalAlignment = projection.normalAlignment;
+
+  if (projection.distance > 0.06) flags.push("raw-route-to-surface-distance-over-0.06");
+  if (Math.abs(verticalShift) > AUTO_DIRECTION_GUARD_MAX_VERTICAL_DRIFT) flags.push("longitudinal-drift-over-0.08");
+  if (Math.abs(rawX) > 0.03 && rawX * anchorX < 0) flags.push("crosses-anatomical-midline");
+  if (isLimbSurface(rawAnchor.surface) && Math.abs(rawX) > 0.10 && Math.abs(anchorX) < Math.abs(rawX) * 0.65) {
+    flags.push("possible-inward-limb-snap");
+  }
+  if (Number.isFinite(normalAlignment) && normalAlignment < -0.20) {
+    flags.push("projected-surface-opposes-intended-normal");
+  } else if (Number.isFinite(normalAlignment) && normalAlignment < AUTO_DIRECTION_GUARD_MIN_ALIGNMENT) {
+    flags.push("projected-surface-direction-needs-review");
+  }
+  if (projection.automaticDirectionGuard.startsWith("rejected")) {
+    flags.push("automatic-direction-guard-needs-route-review");
+  }
+
+  return {
+    status: "estimated",
+    reviewStatus: "needs-anatomical-and-model-fit-review",
+    sourceSurface: rawAnchor.surface,
+    sourceLandmark: rawAnchor.landmark,
+    rawToSurfaceDistance: projection.distance,
+    unconstrainedNearestDistance: projection.nearestDistance,
+    intendedNormalAlignment: normalAlignment,
+    unconstrainedNearestNormalAlignment: projection.nearestNormalAlignment,
+    automaticDirectionGuard: projection.automaticDirectionGuard,
+    lateralShift: round(lateralShift),
+    verticalShift: round(verticalShift),
+    anteriorPosteriorShift: round(anteriorPosteriorShift),
+    flags,
+    disposition: flags.length ? "flagged-for-anatomical-and-model-fit-review" : "baseline-checked-still-requires-review",
+  };
+}
+
+function createProjectionAuditSummary() {
+  return {
+    status: "estimated",
+    reviewStatus: "needs-anatomical-and-model-fit-review",
+    method: "Each raw route anchor was compared with its rendered Skin_Body triangle attachment; directional guards only replace an opposite-facing nearest triangle when a nearby morphology-compatible surface is available.",
+    instanceCount: 0,
+    attachmentAuditCoverage: "0/0",
+    flaggedInstanceCount: 0,
+    flagCounts: {},
+    automaticDirectionGuard: {},
+    routes: {},
+  };
+}
+
+function recordProjectionAudit(summary, instance, audit) {
+  summary.instanceCount += 1;
+  summary.attachmentAuditCoverage = `${summary.instanceCount}/${summary.instanceCount}`;
+  if (audit.flags.length) summary.flaggedInstanceCount += 1;
+  for (const flag of audit.flags) summary.flagCounts[flag] = (summary.flagCounts[flag] || 0) + 1;
+  summary.automaticDirectionGuard[audit.automaticDirectionGuard] = (summary.automaticDirectionGuard[audit.automaticDirectionGuard] || 0) + 1;
+
+  const routeId = instance.routeId;
+  const route = summary.routes[routeId] || {
+    instanceCount: 0,
+    flaggedInstanceCount: 0,
+    flagCounts: {},
+    automaticDirectionGuard: {},
+  };
+  route.instanceCount += 1;
+  if (audit.flags.length) route.flaggedInstanceCount += 1;
+  for (const flag of audit.flags) route.flagCounts[flag] = (route.flagCounts[flag] || 0) + 1;
+  route.automaticDirectionGuard[audit.automaticDirectionGuard] = (route.automaticDirectionGuard[audit.automaticDirectionGuard] || 0) + 1;
+  summary.routes[routeId] = route;
+}
+
 function projectInstancesToFinalSurface(points, surface) {
   const distances = [];
+  const auditSummary = createProjectionAuditSummary();
   for (const point of points.values()) {
     for (const instance of point.instances) {
-      const projection = closestSurfaceProjection(instance.rawAnchor.position, surface);
+      const projection = closestSurfaceProjection(instance.rawAnchor.position, surface, {
+        // Every template normal is retained as an audit contract. Only a
+        // directionally described, non-explicit node can use the conservative
+        // automatic guard; explicit reviewer constraints remain opt-in.
+        intendedNormal: instance.rawAnchor.normal,
+        minimumNormalAlignment: instance.rawAnchor.projection?.minimumNormalAlignment,
+        automaticDirectionGuard: !instance.rawAnchor.projection && isDirectionallyDescribedSurface(instance.rawAnchor.surface),
+        sourceSurface: instance.rawAnchor.surface,
+      });
       distances.push(projection.distance);
+      const audit = attachmentAuditFor(instance.rawAnchor, projection);
       instance.anchor = {
         ...instance.rawAnchor,
         position: projection.position,
@@ -749,11 +1242,19 @@ function projectInstancesToFinalSurface(points, surface) {
           triangle: projection.triangle,
           barycentric: projection.barycentric,
           projectionDistance: projection.distance,
+          unconstrainedNearestDistance: projection.nearestDistance,
           normal: "outward-interpolated-skin-normal",
+          intendedNormalAlignment: projection.normalAlignment,
+          unconstrainedNearestNormalAlignment: projection.nearestNormalAlignment,
+          minimumNormalAlignment: projection.minimumNormalAlignment,
+          automaticDirectionGuard: projection.automaticDirectionGuard,
+          selection: projection.selection,
           status: "estimated",
           reviewStatus: "needs-anatomical-and-model-fit-review",
+          audit,
         },
       };
+      recordProjectionAudit(auditSummary, instance, audit);
     }
   }
   distances.sort((left, right) => left - right);
@@ -766,6 +1267,7 @@ function projectInstancesToFinalSurface(points, surface) {
     medianDistance: round(percentile(0.5)),
     p95Distance: round(percentile(0.95)),
     maximumDistance: round(distances.at(-1)),
+    audit: auditSummary,
   };
 }
 
@@ -790,12 +1292,43 @@ function makeSurfaceRoutes() {
   return routes;
 }
 
+function requiredSourceTextList(point, field) {
+  const value = point[field];
+  if (!Array.isArray(value) || !value.length || value.some((entry) => typeof entry !== "string" || !entry.trim())) {
+    throw new Error(`${point.id} has no usable source ${field} text.`);
+  }
+  return [...value];
+}
+
+function sourceEvidenceFor(point) {
+  if (typeof point.image !== "string" || !point.image.trim()) {
+    throw new Error(`${point.id} has no usable source image path.`);
+  }
+  const absoluteImagePath = path.resolve(ROOT, point.image);
+  const sourceRoot = `${ROOT}${path.sep}`;
+  if (!absoluteImagePath.startsWith(sourceRoot) || !fs.existsSync(absoluteImagePath)) {
+    throw new Error(`${point.id} references a missing source image: ${point.image}`);
+  }
+  const imageStat = fs.statSync(absoluteImagePath);
+  if (!imageStat.isFile() || imageStat.size === 0) {
+    throw new Error(`${point.id} has an empty source image: ${point.image}`);
+  }
+  return {
+    image: point.image,
+    location: requiredSourceTextList(point, "location"),
+    technique: requiredSourceTextList(point, "technique"),
+    ...(typeof point.note === "string" && point.note.trim() ? { note: point.note } : {}),
+    validation: "source-image-and-location-text-verified-at-generation",
+  };
+}
+
 function assertSourcePoints(source) {
   if (!Array.isArray(source.meridians)) throw new Error("The source data has no meridian list.");
   const points = source.meridians.flatMap((meridian) => meridian.points.map((point) => ({ ...point, meridianName: meridian.name })));
   const duplicateIds = points.map((point) => point.id).filter((id, index, all) => all.indexOf(id) !== index);
   if (duplicateIds.length) throw new Error(`Duplicate point ids: ${[...new Set(duplicateIds)].join(", ")}`);
   if (source.totalPoints !== points.length) throw new Error(`Expected ${source.totalPoints} source points, found ${points.length}.`);
+  points.forEach(sourceEvidenceFor);
   return points;
 }
 
@@ -856,16 +1389,35 @@ function addNeighbourRelations(pointsById) {
 function validate(output, sourcePoints) {
   const outputIds = Object.keys(output.points);
   const sourceIds = new Set(sourcePoints.map((point) => point.id));
+  const sourcePointsById = new Map(sourcePoints.map((point) => [point.id, point]));
+  const binding = output.coordinateSpace?.modelBinding;
+  if (!binding
+    || binding.algorithm !== "sha256"
+    || !/^[A-F0-9]{64}$/.test(binding.sha256 || "")
+    || binding.surfaceMesh !== SURFACE_MESH_NAME
+    || !Number.isInteger(binding.meshNodeIndex)
+    || !Array.isArray(binding.sceneNodePath)
+    || !binding.sceneNodePath.length) {
+    throw new Error("Output is missing the Skin_Body model fingerprint/transform binding.");
+  }
   if (outputIds.length !== sourceIds.size) throw new Error(`Output has ${outputIds.length} canonical points; expected ${sourceIds.size}.`);
   for (const id of sourceIds) if (!output.points[id]) throw new Error(`Missing output point ${id}.`);
 
   let bilateralInstances = 0;
   let midlineInstances = 0;
   for (const point of Object.values(output.points)) {
+    const sourcePoint = sourcePointsById.get(point.id);
+    const expectedEvidence = sourceEvidenceFor(sourcePoint);
     const expectedInstances = point.laterality === "bilateral" ? 2 : 1;
     if (point.instances.length !== expectedInstances) throw new Error(`${point.id} has incorrect instance count.`);
     if (point.coordinateStatus !== "estimated" || point.reviewStatus !== "needs-anatomical-and-model-fit-review") {
       throw new Error(`${point.id} is missing its explicit estimated/review labels.`);
+    }
+    if (!point.sourceEvidence
+      || point.sourceEvidence.image !== expectedEvidence.image
+      || JSON.stringify(point.sourceEvidence.location) !== JSON.stringify(expectedEvidence.location)
+      || JSON.stringify(point.sourceEvidence.technique) !== JSON.stringify(expectedEvidence.technique)) {
+      throw new Error(`${point.id} lost its source image/location/technique evidence.`);
     }
     for (const instance of point.instances) {
       const coordinates = [...instance.anchor.position, ...instance.anchor.normal];
@@ -876,12 +1428,54 @@ function validate(output, sourcePoints) {
       if (!Number.isFinite(instance.anchor.surfaceAttachment.projectionDistance)) {
         throw new Error(`${instance.instanceId} has an invalid projection distance.`);
       }
+      if (!Number.isFinite(instance.anchor.surfaceAttachment.unconstrainedNearestDistance)) {
+        throw new Error(`${instance.instanceId} is missing its nearest-surface audit distance.`);
+      }
+      const attachment = instance.anchor.surfaceAttachment;
+      if (!Number.isInteger(attachment.triangle) || attachment.triangle < 0 || attachment.triangle >= output.surfaceProjection.triangleCount) {
+        throw new Error(`${instance.instanceId} has an invalid Skin_Body triangle attachment.`);
+      }
+      if (!Array.isArray(attachment.barycentric) || attachment.barycentric.length !== 3
+        || attachment.barycentric.some((value) => !Number.isFinite(value))
+        || Math.abs(attachment.barycentric.reduce((sum, value) => sum + value, 0) - 1) > 0.00001) {
+        throw new Error(`${instance.instanceId} has an invalid Skin_Body barycentric attachment.`);
+      }
+      if (!attachment.audit || attachment.audit.status !== "estimated"
+        || attachment.audit.reviewStatus !== "needs-anatomical-and-model-fit-review"
+        || !Array.isArray(attachment.audit.flags)
+        || !Number.isFinite(attachment.audit.rawToSurfaceDistance)
+        || !Number.isFinite(attachment.audit.unconstrainedNearestDistance)) {
+        throw new Error(`${instance.instanceId} is missing its per-anchor projection audit.`);
+      }
+      if (!Number.isFinite(attachment.intendedNormalAlignment)
+        || !Number.isFinite(attachment.unconstrainedNearestNormalAlignment)) {
+        throw new Error(`${instance.instanceId} is missing its normal-direction audit.`);
+      }
+      if (instance.rawAnchor.projection) {
+        const requiredAlignment = instance.rawAnchor.projection.minimumNormalAlignment;
+        const { intendedNormalAlignment, minimumNormalAlignment, selection } = instance.anchor.surfaceAttachment;
+        if (!Number.isFinite(requiredAlignment) || requiredAlignment < -1 || requiredAlignment > 1) {
+          throw new Error(`${instance.instanceId} has an invalid directional projection constraint.`);
+        }
+        if (minimumNormalAlignment !== requiredAlignment || !Number.isFinite(intendedNormalAlignment)) {
+          throw new Error(`${instance.instanceId} lost its directional projection audit data.`);
+        }
+        if (intendedNormalAlignment + 0.000001 < requiredAlignment || selection === "nearest-triangle-normal-fallback") {
+          throw new Error(`${instance.instanceId} did not reach its intended surface direction.`);
+        }
+      }
       if (instance.laterality === "midline") midlineInstances += 1;
       else bilateralInstances += 1;
     }
   }
   if (bilateralInstances !== 618 || midlineInstances !== 52) {
     throw new Error(`Unexpected instance coverage: ${bilateralInstances} bilateral, ${midlineInstances} midline.`);
+  }
+  const projectionAudit = output.surfaceProjection?.audit;
+  if (!projectionAudit || projectionAudit.instanceCount !== bilateralInstances + midlineInstances
+    || projectionAudit.attachmentAuditCoverage !== "670/670"
+    || Object.keys(projectionAudit.routes || {}).length !== Object.keys(output.surfaceRoutes).length) {
+    throw new Error("The full-surface projection audit does not cover every generated attachment.");
   }
 }
 
@@ -960,6 +1554,10 @@ function build() {
       laterality: sideMode,
       coordinateStatus: "estimated",
       reviewStatus: "needs-anatomical-and-model-fit-review",
+      // Preserve the exact 2D figure and written location/technique that the
+      // route estimate was derived against. This is evidence linkage, not an
+      // assertion that the generated 3D anchor has received clinical approval.
+      sourceEvidence: sourceEvidenceFor(sourcePoint),
       sourceMapping: {
         routeTemplate: assignedRange.routeId,
         numberRange: [assignedRange.start, assignedRange.end],
@@ -999,6 +1597,7 @@ function build() {
       },
       anchorMeaning: "Raw route estimates are snapped to the nearest triangle of Skin_Body with its outward interpolated normal. Viewers apply marker.offsetAlongNormal.",
       mirrorPolicy: "Bilateral routes are authored once on asset-left and mirrored across x = 0 to make concrete left/right instances.",
+      modelBinding: surface.modelBinding,
     },
     statusVocabulary: {
       coordinateStatus: {

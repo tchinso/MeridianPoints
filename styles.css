@@ -1070,6 +1070,70 @@ body.is-three-d-open {
   touch-action: none;
 }
 
+.three-d-nearby-label-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.three-d-nearby-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.three-d-nearby-leader {
+  fill: none;
+  stroke: rgba(226, 245, 235, 0.88);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
+  vector-effect: non-scaling-stroke;
+}
+
+.three-d-nearby-label {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(43vw, 144px);
+  padding: 3px 6px;
+  overflow-wrap: anywhere;
+  color: #09130f;
+  background: rgba(244, 252, 248, 0.96);
+  border: 1px solid rgba(8, 24, 17, 0.38);
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.32);
+  font-size: clamp(0.63rem, 2.7vw, 0.74rem);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+  will-change: left, top, opacity;
+}
+
+.three-d-nearby-label::before {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  content: "";
+  background: #060807;
+  border: 1px solid rgba(242, 251, 246, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(4, 11, 8, 0.78);
+}
+
+.three-d-nearby-label.is-visible {
+  opacity: 1;
+}
+
 .three-d-stage-fallback {
   position: absolute;
   inset: 0;
@@ -1241,10 +1305,19 @@ body.is-three-d-open {
   .model-viewer-reset {
     width: 100%;
   }
+
+  .three-d-nearby-label {
+    max-width: 132px;
+    padding: 3px 5px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .three-d-loader {
     animation: none;
+  }
+
+  .three-d-nearby-label {
+    transition: none;
   }
 }
