@@ -1669,18 +1669,15 @@ function renderStudy() {
 
       <figure class="image-panel">
         <img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.name)} 위치 이미지" />
+        <button
+          class="three-d-open-button"
+          type="button"
+          data-action="open-3d-view"
+          data-id="${escapeHtml(point.id)}"
+          aria-haspopup="dialog"
+          aria-label="3D로 보기"
+        >3D</button>
       </figure>
-
-      <button
-        class="three-d-open-button"
-        type="button"
-        data-action="open-3d-view"
-        data-id="${escapeHtml(point.id)}"
-        aria-haspopup="dialog"
-      >
-        <span class="three-d-open-button-badge" aria-hidden="true">3D</span>
-        <span>3D로 보기</span>
-      </button>
 
       ${infoBlock("위치", point.location)}
       ${infoBlock("취혈요령", point.technique)}
