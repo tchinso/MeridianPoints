@@ -155,7 +155,11 @@ async function loadAcupoint3DData({ force = false } = {}) {
 
   if (!acupoint3dDataPromise || force) {
     acupoint3dDataPromise = fetch(ACUPOINT_3D_DATA_URL, {
-      cache: force ? "reload" : "default",
+      // Point anchors are generated independently of the app bundle.  Do not
+      // let a long-lived browser cache keep an earlier calibration after the
+      // app itself has been reloaded; this small local JSON is safe to fetch
+      // fresh whenever a viewer session first opens.
+      cache: "no-store",
     })
       .then((response) => {
         if (!response.ok) throw new Error(`3D data request failed: ${response.status}`);
@@ -661,9 +665,9 @@ function focusThreeDPoint(viewer, dataset, point, entry) {
   if (focusPosition) {
     camera.position.copy(focusPosition);
   } else {
-    const fallbackDirection = viewer.defaultCamera.position.clone().sub(viewer.defaultCamera.target);
-    const direction = anchorNormal?.clone().normalize() || fallbackDirection.normalize();
-    const distance = getThreeDFocusDistance(focus, viewer.defaultCamera.focusDistance);
+    const direction = getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal);
+    const requestedDistance = getThreeDFocusDistance(focus, viewer.defaultCamera.focusDistance);
+    const distance = getThreeDExteriorFocusDistance(viewer, focusTarget, direction, requestedDistance);
     camera.position.copy(focusTarget).addScaledVector(direction, distance);
   }
 
@@ -690,6 +694,66 @@ function getThreeDAnchorNormal(THREE, anchors) {
 
   const combined = normals.reduce((sum, normal) => sum.add(normal), new THREE.Vector3());
   return combined.lengthSq() > 0.000001 ? combined.normalize() : normals[0].clone().normalize();
+}
+
+function getThreeDOutwardDirection(viewer, position) {
+  if (!viewer.bounds || !position?.isVector3) return null;
+
+  const fromModelCenter = position.clone().sub(viewer.bounds.getCenter(new viewer.THREE.Vector3()));
+  return fromModelCenter.lengthSq() > 0.000001 ? fromModelCenter.normalize() : null;
+}
+
+function getThreeDExteriorNormal(viewer, position, normal) {
+  if (!normal?.isVector3 || normal.lengthSq() <= 0.000001) return null;
+
+  const exteriorNormal = normal.clone().normalize();
+  const outwardDirection = getThreeDOutwardDirection(viewer, position);
+  // A few triangles around the vertex have an inverted winding/normal after
+  // normal smoothing.  Orient a clearly inward normal away from the model
+  // centre before using it for marker offset or camera focus.
+  if (outwardDirection && exteriorNormal.dot(outwardDirection) < -0.18) {
+    exteriorNormal.negate();
+  }
+  return exteriorNormal;
+}
+
+function getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal) {
+  const fallbackDirection = viewer.defaultCamera.position.clone().sub(viewer.defaultCamera.target).normalize();
+  const outwardDirection = getThreeDOutwardDirection(viewer, focusTarget);
+  const surfaceDirection = getThreeDExteriorNormal(viewer, focusTarget, anchorNormal);
+
+  if (!surfaceDirection) return outwardDirection || fallbackDirection;
+  if (!outwardDirection) return surfaceDirection;
+
+  // A tangential surface normal can still leave the initial camera inside the
+  // body envelope. Blend it toward the independently derived outward vector
+  // so every fallback view starts on the exterior side of the model.
+  const alignment = surfaceDirection.dot(outwardDirection);
+  if (alignment >= 0.22) return surfaceDirection;
+
+  const blend = (0.22 - alignment) / (1.22 - alignment);
+  return surfaceDirection.lerp(outwardDirection, blend).normalize();
+}
+
+function getThreeDExteriorFocusDistance(viewer, focusTarget, direction, requestedDistance) {
+  const bounds = viewer.bounds;
+  if (!bounds?.containsPoint(focusTarget)) return requestedDistance;
+
+  const exitDistances = ["x", "y", "z"]
+    .map((axis) => {
+      const component = direction[axis];
+      if (Math.abs(component) <= 0.000001) return null;
+      const boundary = component > 0 ? bounds.max[axis] : bounds.min[axis];
+      const distance = (boundary - focusTarget[axis]) / component;
+      return distance >= 0 ? distance : null;
+    })
+    .filter((distance) => Number.isFinite(distance));
+
+  if (!exitDistances.length) return requestedDistance;
+
+  const largestDimension = bounds.getSize(new viewer.THREE.Vector3()).length();
+  const exteriorPadding = Math.max(largestDimension * 0.06, 0.06);
+  return Math.max(requestedDistance, Math.min(...exitDistances) + exteriorPadding);
 }
 
 function resolveThreeDEntryAnchors(viewer, entry, dataset) {
@@ -720,9 +784,10 @@ function resolveThreeDAnchor(viewer, entry, dataset) {
   // data that has not been surface-bound yet.
   if (!hasSurfaceAttachment) {
     if (!directPosition) throw new Error("3D anchor position is missing");
+    const exteriorNormal = getThreeDExteriorNormal(viewer, directPosition, directNormal);
     return {
-      position: applyMarkerOffset(directPosition, directNormal, getMarkerOffset(entry, anchor, dataset)),
-      normal: directNormal,
+      position: applyMarkerOffset(directPosition, exteriorNormal, getMarkerOffset(entry, anchor, dataset)),
+      normal: exteriorNormal,
     };
   }
 
@@ -750,10 +815,11 @@ function resolveThreeDAnchor(viewer, entry, dataset) {
   const worldPosition = mesh.localToWorld(localPosition);
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
   const worldNormal = localNormal?.applyMatrix3(normalMatrix).normalize() || null;
+  const exteriorNormal = getThreeDExteriorNormal(viewer, worldPosition, worldNormal);
 
   return {
-    position: applyMarkerOffset(worldPosition, worldNormal, getMarkerOffset(entry, anchor, dataset)),
-    normal: worldNormal,
+    position: applyMarkerOffset(worldPosition, exteriorNormal, getMarkerOffset(entry, anchor, dataset)),
+    normal: exteriorNormal,
   };
 }
 

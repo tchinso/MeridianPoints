@@ -596,7 +596,21 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   ST4: sn([-0.045, 1.640, 0.090], [-0.30, 0.20, 0.93], "anterior-cheek", "lateral oral commissure"),
   ST5: sn([-0.070, 1.620, 0.070], [-0.83, -0.31, 0.46], "anterolateral-jaw", "masseter lower-border recess"),
   ST18: sn([-0.120, 1.325, 0.130], [-0.50, 0, 0.85], "anterior-lateral-chest", "fifth intercostal field below nipple"),
-  ST19: sn([-0.120, 1.280, 0.130], [-0.50, 0, 0.85], "anterior-lateral-chest", "upper abdominal field, six cun above umbilicus"),
+  // ST19–30 run on the two-cun lateral line and are explicitly matched to
+  // the CV level named in each source entry. The former route interpolation
+  // placed much of this abdominal strip one or more cun too cranial.
+  ST19: sn([-0.120, 1.185, 0.130], [-0.50, 0, 0.85], "anterior-lateral-chest", "ST19 two cun lateral to CV14 / six cun superior to umbilicus"),
+  ST20: sn([-0.120, 1.167, 0.130], [-0.50, 0, 0.85], "upper-abdomen", "ST20 two cun lateral to CV13 / five cun superior to umbilicus"),
+  ST21: sn([-0.120, 1.144, 0.125], [-0.50, 0, 0.85], "upper-abdomen", "ST21 two cun lateral to CV12 / four cun superior to umbilicus"),
+  ST22: sn([-0.120, 1.121, 0.122], [-0.50, 0, 0.85], "upper-abdomen", "ST22 two cun lateral to CV11 / three cun superior to umbilicus"),
+  ST23: sn([-0.120, 1.100, 0.118], [-0.50, 0, 0.85], "upper-abdomen", "ST23 two cun lateral to CV10 / two cun superior to umbilicus"),
+  ST24: sn([-0.120, 1.057, 0.115], [-0.50, 0, 0.85], "upper-abdomen", "ST24 two cun lateral to CV9 / one cun superior to umbilicus"),
+  ST25: sn([-0.120, 1.041, 0.112], [-0.50, 0, 0.85], "anterior-abdomen", "ST25 two cun lateral to CV8 at the umbilical level"),
+  ST26: sn([-0.120, 0.989, 0.108], [-0.50, 0, 0.85], "lower-abdomen", "ST26 two cun lateral to CV7 / one cun inferior to umbilicus"),
+  ST27: sn([-0.120, 0.850, 0.100], [-0.50, 0, 0.85], "lower-abdomen", "ST27 two cun lateral to CV5 / two cun inferior to umbilicus"),
+  ST28: sn([-0.120, 0.820, 0.095], [-0.50, 0, 0.85], "lower-abdomen", "ST28 two cun lateral to CV4 / three cun inferior to umbilicus"),
+  ST29: sn([-0.120, 0.790, 0.090], [-0.50, 0, 0.85], "pubic", "ST29 two cun lateral to CV3 / four cun inferior to umbilicus"),
+  ST30: sn([-0.125, 0.779, 0.085], [-0.54, 0, 0.84], "inguinal", "ST30 two cun lateral to CV2 at superior pubic border"),
 
   // The prior distal lower-leg controls sat forward of the skin and projected
   // through the tibia/ankle. These fit the lateral anterior tibial contour at
@@ -615,7 +629,7 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   // LU5 and preserve the distinct medial biceps-tendon recesses for HT/PC.
   LU5: sn([-0.250, 1.265, 0.015], [-0.70, 0, 0.70], "anterior-lateral-elbow", "radial biceps-tendon recess"),
   LU6: sn([-0.290, 1.160, 0.020], [-0.55, 0.10, 0.83], "anterior-lateral-forearm", "radial forearm, five cun below LU5"),
-  LU11: sn([-0.310, 0.780, 0.080], [-0.70, 0.30, 0.60], "thumb", "radial thumbnail corner"),
+  LU11: sn([-0.250, 0.780, 0.100], [-0.82, 0.25, 0.51], "thumb", "radial thumbnail corner"),
   HT3: sn([-0.190, 1.250, 0.010], [0.65, 0, 0.76], "anterior-medial-elbow", "ulnar end of antecubital crease"),
   HT4: sn([-0.200, 1.180, 0.000], [0.65, 0, 0.76], "anterior-medial-forearm", "ulnar palmar forearm, 1.5 cun above HT7"),
   HT5: sn([-0.200, 1.145, 0.000], [0.65, 0, 0.76], "anterior-medial-forearm", "ulnar palmar forearm, one cun above HT7"),
@@ -636,8 +650,10 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   TE7: sn([-0.290, 1.170, -0.050], [-0.70, 0, -0.70], "posterolateral-forearm", "ulnar dorsal forearm, one cun medial to TE6"),
   TE13: sn([-0.220, 1.300, -0.070], [-0.70, 0, -0.70], "posterolateral-upper-arm", "posterior deltoid border"),
   TE15: sn([-0.200, 1.360, -0.060], [-0.70, 0, -0.70], "posterior-shoulder", "posterior superior shoulder between GB21 and SI13"),
-  TE17: sn([-0.075, 1.670, -0.050], [-0.80, 0, -0.60], "posterior-auricular", "mastoid recess posterior to the earlobe"),
-  TE19: sn([-0.075, 1.670, -0.050], [-0.80, 0, -0.60], "posterior-auricular", "upper third of posterior auricular curve"),
+  // TE17 and TE19 lie at different documented points on the posterior
+  // auricular arc (earlobe/mastoid versus its upper third).
+  TE17: sn([-0.076, 1.665, -0.055], [-0.82, -0.04, -0.57], "posterior-auricular", "mastoid recess posterior to the earlobe"),
+  TE19: sn([-0.080, 1.715, -0.030], [-0.95, 0.14, -0.26], "posterior-auricular", "upper third of posterior auricular curve"),
 
   // Scalp, posterior neck, sacral/popliteal, and lateral ankle/foot targets.
   BL4: sn([-0.055, 1.740, 0.090], [-0.63, 0.25, 0.74], "frontal-scalp", "frontal hairline medial third"),
@@ -649,10 +665,20 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   BL64: sn([-0.160, 0.045, 0.100], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsal tuberosity border"),
   BL65: sn([-0.160, 0.030, 0.120], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsophalangeal border"),
   GB11: sn([-0.073, 1.692, -0.055], [-0.93, -0.13, -0.35], "posterior-auricular", "mastoid base posterior to ear"),
+  GB12: sn([-0.075, 1.542, -0.075], [-0.66, 0, -0.75], "posterior-mastoid", "GB12 posterior mastoid edge at GV16 horizontal level"),
   GB18: sn([-0.060, 1.760, -0.030], [-0.70, 0.60, -0.30], "parietal-scalp", "superior temporal/parietal scalp"),
-  GB19: sn([-0.070, 1.720, -0.060], [-0.80, 0.20, -0.55], "posterior-auricular", "occipital field, 1.5 cun superior to GB20"),
+  GB19: sn([-0.070, 1.654, -0.075], [-0.70, 0.05, -0.71], "occiput", "GB19 occipital field at GV17 horizontal level"),
   GB20: sn([-0.080, 1.540, -0.090], [-0.40, 0.20, -0.90], "posterior-neck", "suboccipital trapezius/SCM recess"),
-  GB28: sn([-0.200, 0.895, -0.020], [-1, 0, 0], "lateral-hip", "anterior iliac crest lateral field"),
+  // GB22–28 crosses a fourth-intercostal lateral chest pair, costal margin,
+  // umbilicus and anterior iliac line.  It cannot inherit the shoulder-to-hip
+  // interpolation used by the long GB route.
+  GB22: sn([-0.170, 1.350, 0.105], [-0.78, 0, 0.62], "fourth-intercostal-lateral-chest", "GB22 three cun below axillary fold at fourth intercostal level"),
+  GB23: sn([-0.145, 1.350, 0.135], [-0.60, 0, 0.80], "fourth-intercostal-lateral-chest", "GB23 one cun anterior to GB22 at fourth intercostal level"),
+  GB24: sn([-0.140, 1.245, 0.120], [-0.55, 0, 0.84], "lateral-chest", "GB24 seventh intercostal line, four cun lateral to midline"),
+  GB25: sn([-0.155, 1.160, 0.060], [-0.78, 0, 0.62], "lateral-torso", "GB25 inferior border of twelfth rib"),
+  GB26: sn([-0.150, 1.040, 0.100], [-0.70, 0, 0.71], "lateral-torso", "GB26 at umbilical level, inferior to LR13"),
+  GB27: sn([-0.150, 0.820, 0.085], [-0.72, 0, 0.69], "lateral-hip", "GB27 anterior iliac field at CV4 horizontal level"),
+  GB28: sn([-0.175, 0.790, 0.045], [-0.90, 0, 0.44], "lateral-hip", "GB28 one half cun inferior to GB27 along anterior ilium"),
   GB42: sn([-0.120, 0.040, 0.120], [0, 1, 0], "dorsal-foot", "fourth/fifth metatarsal dorsal field"),
   GB43: sn([-0.130, 0.025, 0.130], [0, 1, 0], "dorsal-foot", "fourth/fifth toe web recess"),
 
@@ -662,9 +688,129 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   SP3: sn([-0.100, 0.040, 0.100], [0.77, -0.57, -0.29], "medial-foot", "first metatarsal head medial plantar border"),
   SP4: sn([-0.100, 0.065, 0.060], [0.90, -0.38, -0.22], "medial-ankle", "first metatarsal base medial border"),
   SP13: sn([-0.130, 0.820, 0.100], [-0.40, 0, 0.90], "lower-abdomen", "four cun lateral to the midline, 0.7 cun superior to SP12"),
-  KI2: sn([-0.100, 0.040, 0.100], [0.77, -0.57, -0.29], "medial-plantar-foot", "navicular tuberosity inferior border"),
+  // SP12–16 stay on the documented four-cun lateral abdominal line before
+  // the channel moves outward to the six-cun intercostal line at SP17.
+  SP14: sn([-0.130, 0.930, 0.105], [-0.46, 0, 0.89], "lower-abdomen", "SP14 three cun superior to SP13, four cun lateral to the midline"),
+  SP15: sn([-0.130, 1.040, 0.120], [-0.48, 0, 0.88], "anterior-abdomen", "SP15 at the umbilical level, four cun lateral to CV8"),
+  SP16: sn([-0.130, 1.120, 0.125], [-0.50, 0, 0.87], "upper-abdomen", "SP16 three cun superior to SP15, four cun lateral to CV11"),
+  KI2: sn([-0.080, 0.065, 0.050], [0.76, -0.42, 0.49], "medial-plantar-foot", "navicular tuberosity inferior border"),
   LR7: sn([-0.080, 0.400, -0.040], [0.70, 0, -0.70], "posteromedial-knee", "one cun posterior to SP9 at the medial knee"),
   LR1: sn([-0.120, 0.020, 0.110], [-0.86, -0.38, -0.34], "great-toe", "lateral great-toe nail corner"),
+  LI10: sn([-0.270, 1.190, -0.020], [-0.56, 0, -0.83], "dorsolateral-forearm", "LI10 three cun inferior to LI11"),
+  HT9: sn([-0.335, 0.750, 0.120], [-0.72, 0.10, 0.69], "little-finger", "HT9 radial little-finger nail corner"),
+
+  // Neck/chest transitions are explicit rather than inherited from a long
+  // face or torso interpolation.  CV19–21 remain on the upper sternum;
+  // CV22 alone enters the suprasternal notch.
+  CV19: sn([0, 1.415, 0.110], [0, 0.02, 1], "upper-sternum", "second intercostal / sternal midline"),
+  CV20: sn([0, 1.435, 0.098], [0, 0.02, 1], "upper-sternum", "first intercostal / sternal midline"),
+  CV21: sn([0, 1.452, 0.085], [0, 0.01, 1], "manubriosternal", "first sternocostal junction midline"),
+
+  // SI10–11 lie on the scapula, not on the posterior upper-arm pathway.
+  SI10: sn([-0.170, 1.360, -0.110], [-0.65, 0, -0.76], "scapular-spine", "SI10 superior-lateral to scapular spine"),
+  SI11: sn([-0.140, 1.320, -0.120], [-0.52, 0, -0.85], "infraspinous-scapula", "SI11 center of infraspinous fossa"),
+  SI1: sn([-0.370, 0.750, 0.090], [-0.82, 0.12, 0.56], "little-finger", "SI1 ulnar little-finger nail corner"),
+
+  // TE10–14 must progress from olecranon to posterior acromion; the former
+  // key fractions collapsed TE11/12 and left TE14 on the arm.
+  TE10: sn([-0.250, 1.250, -0.050], [-0.50, 0, -0.86], "posterior-elbow", "TE10 one cun superior to olecranon"),
+  TE11: sn([-0.240, 1.290, -0.055], [-0.55, 0, -0.83], "posterior-upper-arm", "TE11 one cun superior to TE10"),
+  TE12: sn([-0.225, 1.325, -0.060], [-0.60, 0, -0.80], "posterior-upper-arm", "TE12 midpoint from TE11 to TE13"),
+  TE13: sn([-0.220, 1.345, -0.060], [-0.65, 0, -0.76], "posterior-deltoid", "TE13 three cun inferior to TE14"),
+  TE14: sn([-0.200, 1.400, -0.020], [-0.78, 0.08, -0.62], "posterior-acromion", "TE14 recess inferior to posterior acromion"),
+
+  // LR4–12 had been stretched through the inguinal/lateral-abdomen nodes.
+  // These direct controls retain the documented medial ankle -> popliteal
+  // -> medial thigh -> groin sequence.
+  LR4: sn([-0.100, 0.100, 0.020], [0.78, 0, 0.62], "anteromedial-ankle", "LR4 midpoint from ST41 to SP5"),
+  LR5: sn([-0.100, 0.200, 0.000], [0.86, 0, 0.51], "medial-lower-leg", "LR5 five cun superior to medial malleolus"),
+  LR6: sn([-0.100, 0.230, 0.000], [0.86, 0, 0.51], "medial-lower-leg", "LR6 seven cun superior to medial malleolus"),
+  LR8: sn([-0.100, 0.400, -0.050], [0.62, 0, -0.78], "medial-popliteal", "LR8 medial end of popliteal crease"),
+  LR9: sn([-0.100, 0.550, 0.025], [0.80, 0, 0.60], "proximal-medial-thigh", "LR9 four cun superior to LR8"),
+  LR10: sn([-0.100, 0.650, 0.035], [0.78, 0, 0.63], "medial-thigh", "LR10 three cun inferior to ST30"),
+  LR11: sn([-0.110, 0.720, 0.060], [0.68, 0, 0.73], "proximal-medial-thigh", "LR11 two cun inferior to ST30"),
+  LR12: sn([-0.130, 0.780, 0.100], [0.56, 0, 0.83], "groin", "LR12 inferolateral to ST30 / pubic symphysis"),
+
+  // KI4–9 distinguish posterior/inferior/anterior medial-malleolus points
+  // before ascending the medial leg.  KI11–14 then restart at the pubic and
+  // lower abdominal line instead of continuing through the thigh.
+  KI4: sn([-0.080, 0.070, -0.015], [0.72, 0, -0.69], "posteromedial-ankle", "KI4 posterior-inferior to KI3"),
+  KI5: sn([-0.080, 0.055, 0.000], [0.66, -0.18, 0.73], "inferior-medial-malleolus", "KI5 one cun inferior to KI3"),
+  KI6: sn([-0.080, 0.070, 0.020], [0.75, -0.05, 0.66], "anteromedial-ankle", "KI6 one cun inferior to medial malleolus"),
+  KI7: sn([-0.080, 0.140, 0.000], [0.86, 0, 0.51], "medial-lower-leg", "KI7 two cun superior to KI3"),
+  KI8: sn([-0.080, 0.180, 0.000], [0.86, 0, 0.51], "medial-lower-leg", "KI8 two cun superior to medial malleolus"),
+  KI9: sn([-0.080, 0.220, -0.010], [0.82, 0, 0.57], "medial-lower-leg", "KI9 five cun superior to KI3"),
+  KI11: sn([-0.045, 0.790, 0.100], [-0.34, 0, 0.94], "pubic", "KI11 0.5 cun lateral to CV2"),
+  KI12: sn([-0.045, 0.840, 0.130], [-0.36, 0, 0.93], "lower-abdomen", "KI12 0.5 cun lateral to CV3"),
+  KI13: sn([-0.045, 0.820, 0.115], [-0.38, 0, 0.92], "lower-abdomen", "KI13 0.5 cun lateral to CV4"),
+  KI14: sn([-0.045, 0.850, 0.118], [-0.40, 0, 0.91], "lower-abdomen", "KI14 0.5 cun lateral to CV5"),
+  KI15: sn([-0.048, 0.989, 0.120], [-0.42, 0, 0.91], "lower-abdomen", "KI15 0.5 cun lateral to CV7"),
+  // KI22–27 are matched independently to their named CV intercostal levels
+  // (CV16–21); they must not inherit the lower costal interpolation.
+  KI22: sn([-0.060, 1.328, 0.135], [-0.36, 0.02, 0.93], "fifth-intercostal-chest", "KI22 two cun lateral to CV16 / fifth intercostal level"),
+  KI23: sn([-0.060, 1.357, 0.132], [-0.38, 0.02, 0.92], "fourth-intercostal-chest", "KI23 two cun lateral to CV17 / fourth intercostal level"),
+  KI24: sn([-0.065, 1.389, 0.120], [-0.42, 0.02, 0.91], "third-intercostal-chest", "KI24 two cun lateral to CV18 / third intercostal level"),
+  KI25: sn([-0.075, 1.413, 0.105], [-0.50, 0.02, 0.86], "second-intercostal-chest", "KI25 two cun lateral to CV19 / second intercostal level"),
+  KI26: sn([-0.080, 1.432, 0.095], [-0.56, 0.02, 0.83], "first-intercostal-chest", "KI26 two cun lateral to CV20 / first intercostal level"),
+  KI27: sn([-0.090, 1.449, 0.082], [-0.62, 0.02, 0.78], "infraclavicular-chest", "KI27 infraclavicular recess lateral to CV21"),
+
+  // SP12 begins at the pubic level; SP17–20 follow the fifth through second
+  // intercostal levels independently of the axillary SP21 endpoint.
+  SP12: sn([-0.130, 0.750, 0.100], [-0.45, 0, 0.89], "pubic", "SP12 four cun lateral to CV2"),
+  SP17: sn([-0.140, 1.325, 0.110], [-0.62, 0.02, 0.79], "fifth-intercostal-lateral-chest", "SP17 fifth intercostal level"),
+  SP18: sn([-0.140, 1.350, 0.110], [-0.66, 0.02, 0.75], "fourth-intercostal-lateral-chest", "SP18 fourth intercostal level"),
+  SP19: sn([-0.140, 1.375, 0.105], [-0.70, 0.02, 0.71], "third-intercostal-lateral-chest", "SP19 third intercostal level"),
+  SP20: sn([-0.140, 1.400, 0.100], [-0.74, 0.03, 0.67], "second-intercostal-lateral-chest", "SP20 second intercostal level"),
+  SP21: sn([-0.170, 1.300, 0.090], [-0.80, 0, 0.60], "seventh-intercostal-midaxillary", "SP21 sixth cun below axillary crease"),
+
+  // Cross-channel midpoint and horizontal-level controls from the source
+  // descriptions. They avoid silently inheriting an adjacent long segment.
+  LI17: sn([-0.075, 1.505, 0.070], [-0.64, 0, 0.77], "lateral-neck", "LI17 midpoint of LI18 and ST12 on posterior SCM border"),
+  SI12: sn([-0.170, 1.392, -0.045], [-0.68, 0, -0.73], "scapular", "SI12 midpoint of SI13 and LI16"),
+  TE15: sn([-0.160, 1.384, -0.020], [-0.76, 0.04, -0.65], "superior-shoulder", "TE15 midpoint of GB21 and SI13"),
+  ST31: sn([-0.105, 0.767, 0.075], [-0.46, 0, 0.89], "inguinal", "ST31 at the CV1 horizontal level below anterior superior iliac spine"),
+  LR14: sn([-0.130, 1.185, 0.120], [-0.54, 0, 0.84], "anterior-lateral-chest", "LR14 at CV14 / sixth intercostal horizontal level"),
+
+  // Sacral and calf BL segments restart at their documented levels rather
+  // than interpolating from the gluteal route.  The outer L1/L2 points are
+  // linked vertically to BL22/23, while BL55–57 remain below BL40.
+  BL31: sn([-0.040, 0.916, -0.130], [-0.45, 0, -0.89], "first-sacral-foramen", "BL31 first posterior sacral foramen"),
+  BL32: sn([-0.045, 0.882, -0.120], [-0.48, 0, -0.88], "second-sacral-foramen", "BL32 second posterior sacral foramen"),
+  BL33: sn([-0.050, 0.834, -0.110], [-0.50, 0, -0.86], "third-sacral-foramen", "BL33 third posterior sacral foramen"),
+  BL34: sn([-0.055, 0.789, -0.100], [-0.52, 0, -0.85], "fourth-sacral-foramen", "BL34 fourth posterior sacral foramen"),
+  BL35: sn([-0.060, 0.750, -0.100], [-0.50, 0, -0.86], "coccygeal-lateral", "BL35 lateral to coccyx"),
+  // The outer BL line retains the same documented thoracic interspinous
+  // height as its inner/GV references; only its lateral offset changes.
+  BL41: sn([-0.105, 1.390, -0.140], [-0.52, 0, -0.85], "upper-thoracic-spine", "BL41 three cun lateral to T2/GV13 level"),
+  BL42: sn([-0.108, 1.343, -0.142], [-0.54, 0, -0.84], "upper-thoracic-spine", "BL42 three cun lateral to T3/GV12 level"),
+  BL43: sn([-0.112, 1.314, -0.143], [-0.56, 0, -0.83], "upper-thoracic-spine", "BL43 three cun lateral to T4 level"),
+  BL44: sn([-0.115, 1.283, -0.140], [-0.58, 0, -0.82], "upper-thoracic-spine", "BL44 three cun lateral to GV11/T5 level"),
+  BL45: sn([-0.118, 1.250, -0.135], [-0.60, 0, -0.80], "mid-thoracic-spine", "BL45 three cun lateral to GV10/T6 level"),
+  BL46: sn([-0.120, 1.218, -0.130], [-0.62, 0, -0.78], "mid-thoracic-spine", "BL46 three cun lateral to GV9/T7 level"),
+  BL47: sn([-0.120, 1.177, -0.125], [-0.64, 0, -0.77], "mid-thoracic-spine", "BL47 three cun lateral to GV8/T9 level"),
+  BL48: sn([-0.120, 1.139, -0.120], [-0.64, 0, -0.77], "lower-thoracic-spine", "BL48 three cun lateral to GV7/T10 level"),
+  BL49: sn([-0.120, 1.098, -0.115], [-0.64, 0, -0.77], "lower-thoracic-spine", "BL49 three cun lateral to GV6/T11 level"),
+  BL50: sn([-0.120, 1.065, -0.112], [-0.64, 0, -0.77], "thoracolumbar-spine", "BL50 three cun lateral to T12 level"),
+  BL51: sn([-0.120, 1.043, -0.130], [-0.62, 0, -0.79], "outer-lumbar-line", "BL51 lateral to GV5 / L1"),
+  BL52: sn([-0.120, 1.006, -0.130], [-0.62, 0, -0.79], "outer-lumbar-line", "BL52 lateral to GV4 / L2"),
+  BL53: sn([-0.130, 0.882, -0.110], [-0.62, 0, -0.79], "outer-second-sacral-line", "BL53 lateral to second sacral foramen"),
+  BL54: sn([-0.140, 0.789, -0.100], [-0.64, 0, -0.77], "outer-fourth-sacral-line", "BL54 lateral to fourth sacral foramen"),
+  BL55: sn([-0.110, 0.340, -0.070], [-0.38, 0, -0.92], "upper-calf", "BL55 two cun inferior to BL40"),
+  BL56: sn([-0.110, 0.290, -0.070], [-0.38, 0, -0.92], "mid-calf", "BL56 gastrocnemius belly midpoint"),
+  BL57: sn([-0.110, 0.250, -0.070], [-0.38, 0, -0.92], "lower-calf", "BL57 gastrocnemius Y-recess"),
+  BL58: sn([-0.110, 0.220, -0.070], [-0.40, 0, -0.91], "posterolateral-calf", "BL58 seven cun superior to BL60"),
+  BL63: sn([-0.130, 0.055, 0.080], [-0.58, 0, 0.81], "lateral-foot", "BL63 anteroinferior to lateral malleolus"),
+  BL64: sn([-0.150, 0.040, 0.095], [-0.68, 0.18, 0.71], "fifth-metatarsal-base", "BL64 fifth metatarsal tuberosity border"),
+  BL65: sn([-0.140, 0.035, 0.105], [-0.72, 0.20, 0.66], "fifth-metatarsophalangeal", "BL65 posterior-lateral fifth MTP joint"),
+  BL66: sn([-0.130, 0.024, 0.120], [-0.58, 0.16, 0.80], "fifth-toe-web", "BL66 anterior-lateral fifth MTP recess"),
+  BL67: sn([-0.155, 0.006, 0.185], [-0.72, 0.12, 0.68], "fifth-toe-nail", "BL67 lateral fifth-toe nail root"),
+
+  // GB35–38 are all lower-leg levels measured from the lateral malleolus,
+  // not knee landmarks.
+  GB35: sn([-0.130, 0.220, -0.060], [-0.74, 0, -0.67], "posterolateral-lower-leg", "GB35 seven cun superior to lateral malleolus"),
+  GB36: sn([-0.130, 0.220, 0.000], [-0.88, 0, 0.47], "anterolateral-lower-leg", "GB36 seven cun superior to lateral malleolus, anterior to GB35"),
+  GB37: sn([-0.130, 0.190, 0.000], [-0.88, 0, 0.47], "anterolateral-lower-leg", "GB37 five cun superior to lateral malleolus"),
+  GB38: sn([-0.130, 0.170, 0.000], [-0.88, 0, 0.47], "anterolateral-lower-leg", "GB38 four cun superior to lateral malleolus"),
 };
 
 function pointCalibrationOverrideFor(pointId, side) {
@@ -725,6 +871,16 @@ const ROUTE_TEMPLATES = {
       n([-0.025, 1.700, 0.208], [-0.08, 0, 1], "nose", "lateral nasal margin"),
     ],
   },
+  LI_head: {
+    code: "LI",
+    sideMode: "bilateral",
+    label: "sternocleidomastoid to nasolabial fold",
+    nodes: [
+      sn([-0.075, 1.570, 0.050], [-0.78, 0.04, 0.62], "lateral-neck", "LI18 posterior border of SCM at thyroid-cartilage level"),
+      sn([-0.024, 1.675, 0.120], [-0.36, 0, 0.93], "lateral-philtrum", "LI19 0.5 cun lateral to GV26"),
+      sn([-0.040, 1.695, 0.105], [-0.62, 0, 0.79], "nasolabial-fold", "LI20 lateral to nasal ala"),
+    ],
+  },
   ST_main: {
     code: "ST",
     sideMode: "bilateral",
@@ -750,6 +906,27 @@ const ROUTE_TEMPLATES = {
       n([-0.21, 0.075, 0.120], [-0.45, 0, 0.89], "anterior-ankle", "anterior ankle"),
       n([-0.20, 0.040, 0.180], [-0.12, 0, 0.99], "dorsal-foot", "second metatarsal surface"),
       n([-0.20, 0.020, 0.200], [-0.18, 0, 0.98], "second-toe", "second toe lateral nail field"),
+    ],
+  },
+  ST_head_neck: {
+    code: "ST",
+    sideMode: "bilateral",
+    label: "infraorbital face through supraclavicular fossa",
+    nodes: [
+      // ST1 is infraorbital, not the medial canthus occupied by BL1. Keep
+      // their source-distinct facial levels apart on the rounded eye mesh.
+      sn([-0.025, 1.680, 0.105], [-0.24, -0.08, 0.97], "infraorbital-face", "ST1 directly inferior to pupil"),
+      sn([-0.028, 1.685, 0.096], [-0.30, 0.02, 0.95], "infraorbital-face", "ST2 infraorbital foramen"),
+      sn([-0.040, 1.668, 0.091], [-0.42, 0, 0.91], "malar-cheek", "ST3 pupil line at inferior nasal-ala level"),
+      sn([-0.050, 1.642, 0.087], [-0.48, 0, 0.88], "anterior-cheek", "ST4 lateral oral commissure"),
+      sn([-0.060, 1.620, 0.065], [-0.83, -0.31, 0.46], "anterolateral-jaw", "ST5 lower masseter border"),
+      sn([-0.070, 1.635, 0.050], [-0.94, 0.04, 0.34], "masseter", "ST6 masseteric prominence"),
+      sn([-0.078, 1.665, 0.035], [-0.95, 0.03, 0.31], "infratemporal-fossa", "ST7 inferior to zygomatic arch anterior to tragus"),
+      sn([-0.080, 1.750, 0.060], [-0.85, 0.35, 0.39], "temporal-hairline", "ST8 temporal corner hairline"),
+      sn([-0.055, 1.570, 0.090], [-0.68, 0.02, 0.73], "anterior-neck", "ST9 carotid pulse medial to SCM at laryngeal prominence"),
+      sn([-0.065, 1.510, 0.080], [-0.74, 0, 0.67], "anterior-neck", "ST10 anterior SCM border"),
+      sn([-0.085, 1.455, 0.070], [-0.68, -0.08, 0.72], "supraclavicular", "ST11 interval of sternocleidomastoid heads"),
+      sn([-0.115, 1.425, 0.100], [-0.54, -0.04, 0.84], "supraclavicular-fossa", "ST12 midpoint of clavicular fossa"),
     ],
   },
   SP_main: {
@@ -807,18 +984,36 @@ const ROUTE_TEMPLATES = {
       n([-0.14, 1.710, 0.080], [-0.75, 0, 0.66], "temple", "anterior auricular surface"),
     ],
   },
+  SI_head: {
+    code: "SI",
+    sideMode: "bilateral",
+    label: "posterior SCM through zygoma and tragus",
+    nodes: [
+      sn([-0.075, 1.550, -0.030], [-0.65, 0, -0.76], "posterolateral-neck", "SI16 posterior SCM border at laryngeal level"),
+      sn([-0.070, 1.650, -0.002], [-0.82, 0.02, -0.57], "mandibular-angle", "SI17 posteroinferior to mandibular angle"),
+      sn([-0.070, 1.672, 0.055], [-0.68, 0, 0.73], "zygomatic-cheek", "SI18 inferior zygomatic border"),
+      sn([-0.078, 1.690, 0.010], [-0.96, 0, 0.24], "pretragal-fossa", "SI19 central pretragal depression"),
+    ],
+  },
   BL_head: {
     code: "BL",
     sideMode: "bilateral",
     label: "medial eye to posterior neck",
     nodes: [
-      n([-0.045, 1.700, 0.158], [-0.18, 0.08, 0.98], "medial-eye", "medial canthus region"),
-      n([-0.05, 1.740, 0.135], [-0.24, 0.54, 0.81], "brow", "medial brow"),
-      n([-0.06, 1.770, 0.080], [-0.40, 0.80, 0.45], "frontal-scalp", "frontal hairline"),
-      n([-0.065, 1.805, 0.000], [-0.62, 0.78, 0], "parietal-scalp", "parietal scalp"),
-      n([-0.065, 1.780, -0.100], [-0.50, 0.62, -0.60], "posterior-scalp", "parietal-occipital transition"),
-      n([-0.07, 1.700, -0.170], [-0.45, 0.18, -0.87], "occiput", "occipital scalp"),
-      n([-0.07, 1.540, -0.100], [-0.48, 0, -0.88], "posterior-neck", "upper cervical region"),
+      // BL1–10 is a compact eye -> scalp -> posterior-neck sequence.  It
+      // used to have seven controls but was keyed as if every third point
+      // were a scalp point, pulling BL7–9 down the occiput.  Keep one direct
+      // Skin_Body control per documented source point instead.
+      sn([-0.022, 1.702, 0.100], [-0.18, 0.08, 0.98], "medial-eye", "BL1 medial canthus"),
+      sn([-0.024, 1.728, 0.095], [-0.24, 0.54, 0.81], "medial-brow", "BL2 medial brow / supraorbital notch"),
+      sn([-0.028, 1.752, 0.080], [-0.40, 0.66, 0.63], "frontal-scalp", "BL3 directly superior to medial brow"),
+      sn([-0.055, 1.745, 0.080], [-0.63, 0.32, 0.70], "frontal-scalp", "BL4 frontal hairline, 1.5 cun lateral to GV24"),
+      sn([-0.052, 1.770, 0.055], [-0.58, 0.62, 0.53], "anterior-parietal-scalp", "BL5 lateral to GV23"),
+      sn([-0.052, 1.785, 0.025], [-0.62, 0.77, 0.17], "parietal-scalp", "BL6 posterior to BL5"),
+      sn([-0.052, 1.790, -0.010], [-0.63, 0.77, -0.10], "parietal-scalp", "BL7 anterior to GV20"),
+      sn([-0.052, 1.772, -0.045], [-0.58, 0.65, -0.47], "posterior-parietal-scalp", "BL8 posterior to BL7"),
+      sn([-0.045, 1.654, -0.090], [-0.46, 0.02, -0.89], "occiput", "BL9 lateral to GV17 at the GV17 horizontal level"),
+      sn([-0.038, 1.555, -0.085], [-0.44, 0, -0.90], "posterior-neck", "BL10 lateral to GV15 at hairline"),
     ],
   },
   BL_inner: {
@@ -915,6 +1110,51 @@ const ROUTE_TEMPLATES = {
       n([-0.13, 1.750, 0.040], [-0.76, 0.12, 0.64], "temple", "temporal scalp"),
     ],
   },
+  TE_head: {
+    code: "TE",
+    sideMode: "bilateral",
+    label: "mastoid arc to lateral brow",
+    nodes: [
+      sn([-0.075, 1.650, -0.035], [-0.84, 0, -0.54], "posterior-auricular-neck", "TE16 inferior-posterior mastoid at hairline"),
+      sn([-0.075, 1.672, -0.050], [-0.80, 0, -0.60], "posterior-auricular", "TE17 mastoid/mandible recess behind earlobe"),
+      sn([-0.078, 1.692, -0.043], [-0.92, 0.08, -0.39], "posterior-auricular", "TE18 lower third of posterior auricular arc"),
+      sn([-0.080, 1.715, -0.030], [-0.95, 0.14, -0.26], "posterior-auricular", "TE19 upper third of posterior auricular arc"),
+      sn([-0.076, 1.740, -0.005], [-0.88, 0.32, -0.18], "superior-auricular", "TE20 superior to folded ear apex"),
+      sn([-0.078, 1.695, 0.010], [-0.96, 0, 0.24], "pretragal-fossa", "TE21 superior pretragal depression"),
+      sn([-0.070, 1.720, 0.035], [-0.90, 0.12, 0.42], "anterior-auricular-temple", "TE22 anterosuperior to tragus"),
+      sn([-0.060, 1.750, 0.075], [-0.62, 0.32, 0.72], "lateral-brow", "TE23 lateral eyebrow recess"),
+    ],
+  },
+  GB_head: {
+    code: "GB",
+    sideMode: "bilateral",
+    label: "lateral eye through temporal scalp, occiput, and shoulder",
+    nodes: [
+      sn([-0.055, 1.702, 0.094], [-0.70, 0.05, 0.71], "lateral-eye", "GB1 lateral canthus"),
+      sn([-0.076, 1.672, 0.015], [-0.96, 0, 0.24], "inferior-pretragal-fossa", "GB2 inferior pretragal depression"),
+      sn([-0.075, 1.705, 0.030], [-0.95, 0.06, 0.31], "superior-pretragal-fossa", "GB3 superior to ST7 below zygomatic arch"),
+      sn([-0.080, 1.748, 0.052], [-0.88, 0.31, 0.36], "temporal-hairline", "GB4 upper quarter from ST8 to GB7"),
+      sn([-0.082, 1.745, 0.026], [-0.95, 0.27, 0.16], "temporal-scalp", "GB5 midpoint from ST8 to GB7"),
+      sn([-0.083, 1.741, 0.000], [-0.98, 0.19, -0.04], "temporal-scalp", "GB6 lower quarter from ST8 to GB7"),
+      sn([-0.083, 1.735, -0.025], [-0.95, 0.08, -0.28], "superior-auricular-hairline", "GB7 anterior to ear apex at hairline"),
+      sn([-0.083, 1.770, -0.020], [-0.86, 0.45, -0.24], "superior-auricular-scalp", "GB8 1.5 cun superior to ear apex"),
+      sn([-0.081, 1.760, -0.042], [-0.91, 0.35, -0.24], "posterior-temporal-scalp", "GB9 0.5 cun posterior to GB8"),
+      sn([-0.080, 1.735, -0.065], [-0.87, 0.16, -0.47], "posterior-auricular-scalp", "GB10 posteroinferior to GB9"),
+      sn([-0.075, 1.695, -0.065], [-0.93, -0.13, -0.35], "mastoid-base", "GB11 mastoid base"),
+      sn([-0.078, 1.675, -0.075], [-0.82, 0, -0.57], "posterior-mastoid", "GB12 posterior mastoid edge at GV16 level"),
+      sn([-0.075, 1.755, 0.055], [-0.76, 0.42, 0.50], "frontal-hairline", "GB13 3 cun lateral to GV24"),
+      // GB14 is on the pupil line above the eyebrow, whereas BL4 is at the
+      // frontal-hairline medial third; they must not share one scalp vertex.
+      sn([-0.062, 1.728, 0.105], [-0.56, 0.14, 0.82], "forehead", "GB14 one cun superior to brow on pupil line"),
+      sn([-0.070, 1.757, 0.060], [-0.71, 0.51, 0.48], "frontal-hairline", "GB15 midpoint of GV24/ST8 line"),
+      sn([-0.070, 1.777, 0.035], [-0.73, 0.65, 0.24], "anterior-parietal-scalp", "GB16 one cun posterior to GB15"),
+      sn([-0.070, 1.790, 0.010], [-0.75, 0.72, 0.05], "parietal-scalp", "GB17 one cun posterior to GB16"),
+      sn([-0.060, 1.760, -0.030], [-0.70, 0.60, -0.30], "parietal-scalp", "GB18 pupil line, four cun posterior to hairline"),
+      sn([-0.070, 1.720, -0.075], [-0.80, 0.20, -0.55], "occiput", "GB19 1.5 cun superior to GB20"),
+      sn([-0.080, 1.555, -0.090], [-0.40, 0.20, -0.90], "suboccipital-neck", "GB20 trapezius/SCM recess"),
+      sn([-0.160, 1.400, 0.015], [-1, 0.05, 0.12], "superior-shoulder", "GB21 midpoint from GV14 to acromion"),
+    ],
+  },
   GB_main: {
     code: "GB",
     sideMode: "bilateral",
@@ -976,23 +1216,69 @@ const ROUTE_TEMPLATES = {
       n([0, 1.650, 0.190], [0, 0, 1], "lower-lip", "lower lip midline"),
     ],
   },
-  GV_main: {
+  CV_head: {
+    code: "CV",
+    sideMode: "midline",
+    label: "suprasternal notch to labiomental groove",
+    nodes: [
+      sn([0, 1.475, 0.082], [0, 0, 1], "suprasternal-notch", "CV22 midline suprasternal notch"),
+      sn([0, 1.585, 0.092], [0, 0, 1], "hyoid-midline", "CV23 superior to hyoid bone"),
+      sn([0, 1.646, 0.118], [0, 0, 1], "labiomental-groove", "CV24 midpoint of mentolabial groove"),
+    ],
+  },
+  GV_spine: {
     code: "GV",
     sideMode: "midline",
-    label: "posterior midline from perineum over scalp to upper gum",
+    label: "coccyx to C7 posterior midline",
     nodes: [
-      n([0, 0.750, -0.100], [0, 0, -1], "posterior-perineum", "perineal posterior midline"),
-      n([0, 0.820, -0.150], [0, 0, -1], "sacral", "sacral midline"),
-      n([0, 0.940, -0.190], [0, 0, -1], "lumbar-spine", "lumbar spinous line"),
-      n([0, 1.100, -0.205], [0, 0, -1], "thoracic-spine", "thoracic spinous line"),
-      n([0, 1.280, -0.210], [0, 0, -1], "upper-thoracic-spine", "upper thoracic spinous line"),
-      n([0, 1.390, -0.200], [0, 0, -1], "cervicothoracic", "cervicothoracic midline"),
-      n([0, 1.500, -0.060], [0, 0, -1], "posterior-neck", "posterior cervical midline"),
-      n([0, 1.620, -0.150], [0, 0.12, -0.99], "occiput", "occipital midline"),
-      n([0, 1.800, -0.010], [0, 1, 0], "vertex", "vertex scalp"),
-      n([0, 1.790, 0.100], [0, 0.72, 0.70], "frontal-scalp", "frontal midline"),
-      n([0, 1.730, 0.160], [0, 0.35, 0.94], "forehead", "forehead midline"),
-      n([0, 1.670, 0.205], [0, 0, 1], "upper-gum", "upper gingival midline"),
+      // One numberwise control per source point.  The prior 12-node route
+      // mapped GV8 (T9) into the lumbar field and GV20 (vertex) to the neck.
+      sn([0, 0.750, -0.070], [0, 0, -1], "posterior-perineum", "GV1 coccyx/anus midpoint"),
+      sn([0, 0.840, -0.115], [0, 0, -1], "sacral-hiatus", "GV2 sacral hiatus"),
+      // The y/z controls below are independently cross-checked against the
+      // corresponding BL vertebral-line levels, not against the previous GV
+      // interpolation.  This prevents a route's own labels from validating a
+      // caudally shifted spine sequence.
+      sn([0, 0.972, -0.129], [0, 0, -1], "lower-lumbar-spine", "GV3 L4–L5 interspinous space"),
+      sn([0, 1.017, -0.133], [0, 0, -1], "upper-lumbar-spine", "GV4 L2–L3 interspinous space"),
+      sn([0, 1.044, -0.135], [0, 0, -1], "thoracolumbar-spine", "GV5 inferior to L1"),
+      sn([0, 1.100, -0.139], [0, 0, -1], "lower-thoracic-spine", "GV6 inferior to T11"),
+      sn([0, 1.136, -0.141], [0, 0, -1], "lower-thoracic-spine", "GV7 inferior to T10"),
+      sn([0, 1.171, -0.144], [0, 0, -1], "mid-thoracic-spine", "GV8 inferior to T9"),
+      sn([0, 1.207, -0.146], [0, 0, -1], "mid-thoracic-spine", "GV9 T7–T8 interspinous space"),
+      sn([0, 1.242, -0.149], [0, 0, -1], "mid-thoracic-spine", "GV10 T6–T7 interspinous space"),
+      sn([0, 1.278, -0.151], [0, 0, -1], "upper-thoracic-spine", "GV11 inferior to T5"),
+      sn([0, 1.340, -0.150], [0, 0, -1], "upper-thoracic-spine", "GV12 T3–T4 interspinous space"),
+      sn([0, 1.390, -0.140], [0, 0, -1], "upper-thoracic-spine", "GV13 T1–T2 interspinous space"),
+      sn([0, 1.430, -0.110], [0, 0, -1], "cervicothoracic-spine", "GV14 C7–T1 interspinous space"),
+    ],
+  },
+  GV_head: {
+    code: "GV",
+    sideMode: "midline",
+    label: "upper cervical midline over scalp",
+    nodes: [
+      sn([0, 1.515, -0.075], [0, 0, -1], "posterior-neck", "GV15 C1–C2, 0.5 cun above posterior hairline"),
+      sn([0, 1.555, -0.105], [0, 0.05, -1], "suboccipital-midline", "GV16 inferior to external occipital protuberance"),
+      sn([0, 1.635, -0.110], [0, 0.18, -0.98], "occiput", "GV17 superior to external occipital protuberance"),
+      sn([0, 1.685, -0.105], [0, 0.38, -0.92], "occipital-scalp", "GV18 1.5 cun superior to GV17"),
+      sn([0, 1.740, -0.080], [0, 0.66, -0.70], "posterior-parietal-scalp", "GV19 1.5 cun posterior to GV20"),
+      sn([0, 1.795, -0.010], [0, 1, 0], "vertex", "GV20 vertex / interauricular line"),
+      sn([0, 1.785, 0.030], [0, 0.92, 0.38], "anterior-parietal-scalp", "GV21 1.5 cun anterior to GV20"),
+      sn([0, 1.775, 0.060], [0, 0.78, 0.63], "anterior-parietal-scalp", "GV22 3 cun anterior to GV20"),
+      sn([0, 1.755, 0.082], [0, 0.60, 0.80], "frontal-scalp", "GV23 one cun posterior to frontal hairline"),
+      sn([0, 1.740, 0.093], [0, 0.46, 0.89], "frontal-scalp", "GV24 0.5 cun posterior to frontal hairline"),
+    ],
+  },
+  GV_face: {
+    code: "GV",
+    sideMode: "midline",
+    label: "nose to upper gingival midline",
+    nodes: [
+      sn([0, 1.705, 0.125], [0, 0.02, 1], "nose-tip", "GV25 nasal tip midpoint"),
+      sn([0, 1.675, 0.120], [0, 0, 1], "philtrum", "GV26 upper third of philtrum"),
+      sn([0, 1.655, 0.126], [0, 0, 1], "upper-lip", "GV27 upper lip midpoint"),
+      sn([0, 1.647, 0.115], [0, 0, 1], "upper-gingival-projection", "GV28 upper labial frenulum exterior projection"),
     ],
   },
 };
@@ -1003,15 +1289,35 @@ const MERIDIAN_PLANS = {
   // documented LU1–LU5 chest/upper-arm/elbow sequence and keep the wrist and
   // thenar landmarks distinct on the arms-down reference model.
   LU: { sideMode: "bilateral", ranges: [range(1, 11, "LU_main", [[1, 0], [2, 0.125], [3, 0.25], [4, 0.375], [5, 0.5], [6, 0.625], [7, 0.69], [8, 0.73], [9, 0.75], [10, 0.875], [11, 1]])] },
-  LI: { sideMode: "bilateral", ranges: [range(1, 20, "LI_main", [[1, 0], [4, 0.182], [5, 0.273], [10, 0.455], [15, 0.636], [18, 0.909], [20, 1]])] },
-  ST: { sideMode: "bilateral", ranges: [range(1, 45, "ST_main", [[1, 0], [7, 0.125], [9, 0.188], [12, 0.25], [18, 0.313], [25, 0.438], [30, 0.563], [35, 0.75], [41, 0.875], [45, 1]])] },
+  LI: {
+    sideMode: "bilateral",
+    ranges: [
+      range(1, 17, "LI_main", [[1, 0], [4, 0.182], [5, 0.273], [10, 0.455], [15, 0.636], [17, 0.818]]),
+      range(18, 20, "LI_head", [[18, 0], [20, 1]]),
+    ],
+  },
+  ST: {
+    sideMode: "bilateral",
+    ranges: [
+      range(1, 12, "ST_head_neck", [[1, 0], [12, 1]]),
+      // Preserve the reviewed chest-to-toe controls while disconnecting ST8
+      // from the neck segment that formerly captured it.
+      range(13, 45, "ST_main", [[13, 0.2605], [18, 0.313], [25, 0.438], [30, 0.563], [35, 0.75], [41, 0.875], [45, 1]]),
+    ],
+  },
   SP: { sideMode: "bilateral", ranges: [range(1, 21, "SP_main", [[1, 0], [5, 0.182], [10, 0.364], [15, 0.727], [18, 0.909], [21, 1]])] },
   HT: { sideMode: "bilateral", ranges: [range(1, 9, "HT_main", [[1, 0], [3, 0.286], [4, 0.429], [7, 0.571], [9, 1]])] },
-  SI: { sideMode: "bilateral", ranges: [range(1, 19, "SI_main", [[1, 0], [4, 0.273], [8, 0.455], [11, 0.545], [14, 0.727], [17, 0.909], [19, 1]])] },
+  SI: {
+    sideMode: "bilateral",
+    ranges: [
+      range(1, 15, "SI_main", [[1, 0], [4, 0.273], [8, 0.455], [11, 0.545], [14, 0.727], [15, 0.787667]]),
+      range(16, 19, "SI_head", [[16, 0], [19, 1]]),
+    ],
+  },
   BL: {
     sideMode: "bilateral",
     ranges: [
-      range(1, 10, "BL_head", [[1, 0], [4, 0.333], [7, 0.833], [10, 1]]),
+      range(1, 10, "BL_head", [[1, 0], [10, 1]]),
       range(11, 40, "BL_inner", [[11, 0], [20, 0.32], [30, 0.60], [36, 0.78], [40, 1]]),
       range(41, 67, "BL_outer", [[41, 0], [50, 0.25], [54, 0.417], [58, 0.583], [63, 0.833], [67, 1]]),
     ],
@@ -1021,11 +1327,36 @@ const MERIDIAN_PLANS = {
   // PC9 (middle-finger tip) each receive their own route landmark rather
   // than inheriting the preceding arm segment.
   PC: { sideMode: "bilateral", ranges: [range(1, 9, "PC_main", [[1, 0], [2, 0.143], [3, 0.429], [4, 0.571], [5, 0.62], [6, 0.67], [7, 0.714], [8, 0.857], [9, 1]])] },
-  TE: { sideMode: "bilateral", ranges: [range(1, 23, "TE_main", [[1, 0], [4, 0.30], [6, 0.40], [10, 0.50], [14, 0.60], [17, 0.70], [23, 1]])] },
-  GB: { sideMode: "bilateral", ranges: [range(1, 44, "GB_main", [[1, 0], [14, 0.214], [21, 0.357], [29, 0.571], [34, 0.714], [40, 0.857], [44, 1]])] },
+  TE: {
+    sideMode: "bilateral",
+    ranges: [
+      range(1, 15, "TE_main", [[1, 0], [4, 0.30], [6, 0.40], [10, 0.50], [14, 0.60], [15, 0.633333]]),
+      range(16, 23, "TE_head", [[16, 0], [23, 1]]),
+    ],
+  },
+  GB: {
+    sideMode: "bilateral",
+    ranges: [
+      range(1, 21, "GB_head", [[1, 0], [21, 1]]),
+      range(22, 44, "GB_main", [[22, 0.38375], [29, 0.571], [34, 0.714], [40, 0.857], [44, 1]]),
+    ],
+  },
   LR: { sideMode: "bilateral", ranges: [range(1, 14, "LR_main", [[1, 0], [4, 0.333], [8, 0.667], [11, 0.889], [14, 1]])] },
-  CV: { sideMode: "midline", ranges: [range(1, 24, "CV_main", [[1, 0], [8, 0.25], [15, 0.417], [16, 0.50], [17, 0.583], [18, 0.667], [22, 0.833], [24, 1]])] },
-  GV: { sideMode: "midline", ranges: [range(1, 28, "GV_main", [[1, 0], [4, 0.091], [14, 0.364], [20, 0.545], [23, 0.636], [26, 0.818], [28, 1]])] },
+  CV: {
+    sideMode: "midline",
+    ranges: [
+      range(1, 21, "CV_main", [[1, 0], [8, 0.25], [15, 0.417], [16, 0.50], [17, 0.583], [18, 0.667], [21, 0.7915]]),
+      range(22, 24, "CV_head", [[22, 0], [24, 1]]),
+    ],
+  },
+  GV: {
+    sideMode: "midline",
+    ranges: [
+      range(1, 14, "GV_spine", [[1, 0], [14, 1]]),
+      range(15, 24, "GV_head", [[15, 0], [24, 1]]),
+      range(25, 28, "GV_face", [[25, 0], [28, 1]]),
+    ],
+  },
 };
 
 function mirrorNode(leftNode) {
@@ -1037,6 +1368,17 @@ function mirrorNode(leftNode) {
 }
 
 function fitRouteNodeToModel(routeNode) {
+  // Most historical route templates are authored in the wider neutral space
+  // and require the mesh-fit scale above.  Dense face/scalp and vertebral
+  // controls are instead authored directly against Skin_Body so that a
+  // 0.5-cun distinction is not compressed by the torso scale factors.
+  if (routeNode.coordinateSpace === "Skin_Body-local") {
+    return {
+      ...routeNode,
+      position: routeNode.position.map(round),
+      normal: normalise(routeNode.normal),
+    };
+  }
   const position = routeNode.position.map((value, index) => round(value * MODEL_ROUTE_POSITION_SCALE[index]));
   const normal = normalise(routeNode.normal.map((value, index) => value / MODEL_ROUTE_POSITION_SCALE[index]));
   return { ...routeNode, position, normal };

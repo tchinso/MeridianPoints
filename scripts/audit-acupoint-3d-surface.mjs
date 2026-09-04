@@ -76,10 +76,23 @@ const SURFACE_TAG_TAXONOMY = Object.fromEntries([
     "brow", "cheek", "chin", "ear", "forehead", "infraorbital-face", "jaw", "lateral-eye", "lower-lip", "medial-eye",
     "nose", "parietal-scalp", "temple", "temporal-scalp", "upper-gum", "vertex",
   ]),
+  // Point-specific face/scalp controls use these finer source-derived tags.
+  // They retain a hard head-mesh band while curved local normals stay a
+  // reviewer-visible signal instead of an invalid global XYZ assertion.
+  ...taxon("head", [], [
+    "anterior-auricular-temple", "anterior-parietal-scalp", "anterolateral-jaw", "frontal-hairline", "infratemporal-fossa",
+    "inferior-pretragal-fossa", "labiomental-groove", "lateral-brow", "lateral-philtrum", "malar-cheek", "mandibular-angle",
+    "masseter", "mastoid-base", "medial-brow", "nasolabial-fold", "nose-tip", "occipital-scalp", "occipital-scalp",
+    "philtrum", "posterior-auricular", "posterior-auricular-neck", "posterior-auricular-scalp", "posterior-mastoid",
+    "posterior-parietal-scalp", "posterior-temporal-scalp", "pretragal-fossa", "superior-auricular", "superior-auricular-hairline",
+    "superior-auricular-scalp", "superior-pretragal-fossa", "temporal-hairline", "upper-gingival-projection", "upper-lip",
+    "zygomatic-cheek",
+  ]),
 
   ...taxon("neck", ["front"], ["anterior-lateral-neck", "anterior-neck"]),
   ...taxon("neck", ["back"], ["posterior-neck", "posterolateral-neck"]),
   ...taxon("neck", [], ["cervicothoracic", "lateral-neck"]),
+  ...taxon("neck", [], ["hyoid-midline", "suboccipital-midline", "suprasternal-notch"]),
 
   ...taxon("torso", ["front"], [
     "anterior-abdomen", "anterior-chest", "anterior-lateral-chest", "anterolateral-abdomen", "infraclavicular",
@@ -92,6 +105,14 @@ const SURFACE_TAG_TAXONOMY = Object.fromEntries([
     "scapular-back", "thoracic-spine", "upper-thoracic-spine",
   ]),
   ...taxon("torso", [], ["axillary-chest", "axillary-fold", "deltopectoral-fossa", "inguinal", "lateral-abdomen", "lateral-chest", "lateral-hip", "lateral-torso", "shoulder"]),
+  ...taxon("torso", [], [
+    "cervicothoracic-spine", "coccygeal-lateral", "fifth-intercostal-chest", "fifth-intercostal-lateral-chest", "first-intercostal-chest", "first-sacral-foramen", "fourth-intercostal-chest",
+    "fourth-intercostal-lateral-chest", "fourth-sacral-foramen", "groin", "infraspinous-scapula", "lower-lumbar-spine",
+    "lower-thoracic-spine", "manubriosternal", "mid-thoracic-spine", "outer-fourth-sacral-line", "outer-lumbar-line",
+    "outer-second-sacral-line", "posterior-acromion", "posterior-deltoid", "sacral-hiatus", "scapular-spine",
+    "second-intercostal-chest", "second-intercostal-lateral-chest", "second-sacral-foramen", "seventh-intercostal-midaxillary", "superior-shoulder",
+    "infraclavicular-chest", "supraclavicular-fossa", "third-intercostal-chest", "third-intercostal-lateral-chest", "third-sacral-foramen", "thoracolumbar-spine", "upper-lumbar-spine",
+  ]),
 
   ...taxon("upper-arm", ["front", "lateral"], ["anterior-lateral-upper-arm"]),
   ...taxon("upper-arm", ["lateral"], ["lateral-upper-arm"]),
@@ -125,6 +146,10 @@ const SURFACE_TAG_TAXONOMY = Object.fromEntries([
   ...taxon("leg", [], ["medial-knee", "medial-leg", "posteromedial-knee"], ["medial", "back"]),
   ...taxon("leg", ["back"], ["posterior-leg", "posterior-thigh", "popliteal"]),
   ...taxon("leg", ["back", "lateral"], ["posterolateral-leg"]),
+  ...taxon("leg", [], [
+    "anterolateral-lower-leg", "lower-calf", "medial-lower-leg", "medial-popliteal", "mid-calf", "posterolateral-calf",
+    "posterolateral-lower-leg", "proximal-medial-thigh", "upper-calf",
+  ]),
 
   ...taxon("foot", ["front"], ["anterior-ankle"]),
   ...taxon("foot", ["superior"], ["dorsal-foot"]),
@@ -135,8 +160,11 @@ const SURFACE_TAG_TAXONOMY = Object.fromEntries([
   ...taxon("foot", [], ["medial-ankle", "medial-foot", "medial-plantar-foot"], ["medial"]),
   ...taxon("foot", ["lateral"], ["lateral-ankle", "lateral-foot"]),
   ...taxon("foot", ["back", "lateral"], ["posterolateral-ankle"]),
+  ...taxon("foot", [], ["anteromedial-ankle", "inferior-medial-malleolus", "posteromedial-ankle"]),
   ...taxon("toe", ["superior"], ["dorsal-toe"]),
   ...taxon("toe", [], ["fifth-toe", "fourth-toe", "great-toe", "second-toe"]),
+  ...taxon("foot", [], ["fifth-metatarsal-base", "fifth-metatarsophalangeal"]),
+  ...taxon("toe", [], ["fifth-toe-nail", "fifth-toe-web"]),
 ]);
 
 function getSurfaceTaxonomy(surface) {
@@ -602,6 +630,208 @@ function auditRouteCompression(instances) {
   return collisions.sort((left, right) => left.compression - right.compression);
 }
 
+// Independent anatomical-region audit.  This intentionally derives its
+// expectation from the canonical meridian number, not `rawAnchor.surface`,
+// route name, or control-node landmark.  It gives every one of the 361 source
+// points an external coarse body-region contract, so a route can no longer
+// validate a neck/head/limb error merely by naming its own target surface.
+const INDEPENDENT_REGION_BANDS = {
+  head: ([x, y]) => Math.abs(x) <= 0.12 && y >= 1.55 && y <= 1.84,
+  neck: ([x, y]) => Math.abs(x) <= 0.28 && y >= 1.40 && y <= 1.67,
+  torso: ([x, y]) => Math.abs(x) <= 0.32 && y >= 0.70 && y <= 1.52,
+  "upper-arm": ([x, y]) => Math.abs(x) >= 0.15 && Math.abs(x) <= 0.37 && y >= 1.20 && y <= 1.47,
+  forearm: ([x, y]) => Math.abs(x) >= 0.16 && Math.abs(x) <= 0.37 && y >= 0.99 && y <= 1.33,
+  palm: ([x, y, z]) => Math.abs(x) >= 0.23 && Math.abs(x) <= 0.40 && y >= 0.70 && y <= 1.00 && z >= -0.02,
+  digit: ([x, y, z]) => Math.abs(x) >= 0.23 && Math.abs(x) <= 0.40 && y >= 0.69 && y <= 0.89 && z >= 0.02,
+  leg: ([x, y]) => Math.abs(x) <= 0.26 && y >= 0.06 && y <= 0.82,
+  foot: ([x, y]) => Math.abs(x) >= 0.035 && Math.abs(x) <= 0.20 && y >= -0.02 && y <= 0.26,
+};
+
+function parsePointId(id) {
+  const match = String(id || "").match(/^([A-Z]+)(\d+)$/);
+  return match ? { code: match[1], number: Number(match[2]) } : null;
+}
+
+function between(value, minimum, maximum) {
+  return value >= minimum && value <= maximum;
+}
+
+function independentExpectedRegion(pointId) {
+  const parsed = parsePointId(pointId);
+  if (!parsed) return null;
+  const { code, number } = parsed;
+  if (code === "LU") return number <= 2 ? "torso" : number <= 5 ? "upper-arm" : number <= 9 ? "forearm" : number === 10 ? "palm" : "digit";
+  if (code === "LI") return number <= 3 ? "digit" : number === 4 ? "palm" : number <= 11 ? "forearm" : number <= 14 ? "upper-arm" : number <= 16 ? "torso" : number <= 18 ? "neck" : "head";
+  if (code === "ST") return number <= 8 ? "head" : number <= 11 ? "neck" : number <= 30 ? "torso" : number <= 40 ? "leg" : "foot";
+  if (code === "SP") return number <= 5 ? "foot" : number <= 11 ? "leg" : "torso";
+  if (code === "HT") return number === 1 ? "torso" : number <= 2 ? "upper-arm" : number <= 7 ? "forearm" : number === 8 ? "palm" : "digit";
+  if (code === "SI") return number === 1 ? "digit" : number <= 3 ? "palm" : number <= 8 ? "forearm" : number === 9 ? "upper-arm" : number <= 15 ? "torso" : number === 16 ? "neck" : "head";
+  if (code === "BL") return number <= 9 ? "head" : number === 10 ? "neck" : number <= 35 ? "torso" : number <= 40 ? "leg" : number <= 54 ? "torso" : number <= 59 ? "leg" : "foot";
+  if (code === "KI") return number <= 6 ? "foot" : number <= 10 ? "leg" : "torso";
+  if (code === "PC") return number === 1 ? "torso" : number <= 3 ? "upper-arm" : number <= 7 ? "forearm" : number === 8 ? "palm" : "digit";
+  if (code === "TE") return number === 1 ? "digit" : number <= 3 ? "palm" : number <= 10 ? "forearm" : number <= 13 ? "upper-arm" : number <= 15 ? "torso" : number === 16 ? "neck" : "head";
+  if (code === "GB") return number <= 19 ? "head" : number === 20 ? "neck" : number <= 28 ? "torso" : number <= 40 ? "leg" : "foot";
+  if (code === "LR") return number <= 4 ? "foot" : number <= 11 ? "leg" : "torso";
+  if (code === "CV") return number <= 22 ? "torso" : number === 23 ? "neck" : "head";
+  if (code === "GV") return number <= 14 ? "torso" : number <= 16 ? "neck" : "head";
+  return null;
+}
+
+function auditIndependentBodyRegions(instances) {
+  const pointIds = new Set();
+  const classifiedPointIds = new Set();
+  const failures = [];
+  for (const instance of instances) {
+    pointIds.add(instance.id);
+    const expectedRegion = independentExpectedRegion(instance.id);
+    const band = INDEPENDENT_REGION_BANDS[expectedRegion];
+    if (band) classifiedPointIds.add(instance.id);
+    if (!band || !band(instance.anchorPosition)) {
+      failures.push({
+        id: instance.id,
+        side: instance.laterality,
+        expectedRegion: expectedRegion || "unclassified",
+        anchorPosition: instance.anchorPosition.map((value) => toFixed(value)),
+      });
+    }
+  }
+  return {
+    canonicalPointCoverage: `${classifiedPointIds.size}/${pointIds.size}`,
+    markerInstanceCoverage: `${instances.filter((instance) => INDEPENDENT_REGION_BANDS[independentExpectedRegion(instance.id)]).length}/${instances.length}`,
+    failures,
+  };
+}
+
+// These contracts are deliberately sourced from documented landmark
+// relationships across *different* channels.  They are additional to the
+// all-point body-region map above and catch the historical segment-offset
+// defects (for example GV8 landing at the lumbar/buttock level).
+function auditIndependentLandmarkContracts(instances) {
+  const byIdAndSide = new Map(instances.map((instance) => [`${instance.id}:${instance.laterality}`, instance]));
+  const get = (id, side) => byIdAndSide.get(`${id}:${side}`);
+  const failures = [];
+  const require = (name, condition, details) => {
+    if (!condition) failures.push({ name, ...details });
+  };
+  const y = (id, side) => get(id, side)?.anchorPosition?.[1];
+  const hasY = (...values) => values.every(Number.isFinite);
+
+  const vertebralPairs = [
+    ["GV3", "BL25"], ["GV4", "BL23"], ["GV5", "BL22"], ["GV6", "BL20"], ["GV7", "BL19"], ["GV8", "BL18"],
+    ["GV9", "BL17"], ["GV10", "BL16"], ["GV11", "BL15"], ["GV12", "BL13"], ["GV13", "BL11"], ["GV14", "BL11"],
+  ];
+  for (const [gv, bl] of vertebralPairs) {
+    const gvY = y(gv, "midline");
+    for (const side of ["left", "right"]) {
+      const blY = y(bl, side);
+      require(`vertebral-${gv}-${bl}-${side}`, hasY(gvY, blY) && Math.abs(gvY - blY) <= 0.075, {
+        expected: "same documented vertebral level (±75 mm mesh allowance)", gvY: toFixed(gvY), blY: toFixed(blY),
+      });
+    }
+  }
+
+  for (const [sacral, paraspinal] of [["BL31", "BL27"], ["BL32", "BL28"], ["BL33", "BL29"], ["BL34", "BL30"]]) {
+    for (const side of ["left", "right"]) {
+      const sacralY = y(sacral, side);
+      const paraspinalY = y(paraspinal, side);
+      require(`sacral-${sacral}-${paraspinal}-${side}`, hasY(sacralY, paraspinalY) && Math.abs(sacralY - paraspinalY) <= 0.07, {
+        expected: "same posterior sacral-foramen level (±70 mm mesh allowance)", sacralY: toFixed(sacralY), paraspinalY: toFixed(paraspinalY),
+      });
+    }
+  }
+
+  for (const side of ["left", "right"]) {
+    const lr5Y = y("LR5", side);
+    const ki9Y = y("KI9", side);
+    require(`distal-LR5-KI9-${side}`, hasY(lr5Y, ki9Y) && Math.abs(lr5Y - ki9Y) <= 0.06, {
+      expected: "both five cun superior to medial malleolus (±60 mm mesh allowance)", lr5Y: toFixed(lr5Y), ki9Y: toFixed(ki9Y),
+    });
+    const ki3Y = y("KI3", side);
+    for (const id of ["KI5", "KI6"]) {
+      const pointY = y(id, side);
+      require(`ankle-${id}-below-KI3-${side}`, hasY(pointY, ki3Y) && pointY <= ki3Y + 0.025, {
+        expected: "inferior to (or level with) KI3 at the medial malleolus", pointY: toFixed(pointY), ki3Y: toFixed(ki3Y),
+      });
+    }
+    const bl40Y = y("BL40", side);
+    const bl60Y = y("BL60", side);
+    const bl55Y = y("BL55", side);
+    const bl56Y = y("BL56", side);
+    const bl57Y = y("BL57", side);
+    require(`calf-BL55-57-${side}`, hasY(bl40Y, bl60Y, bl55Y, bl56Y, bl57Y)
+      && bl55Y < bl40Y && bl55Y > bl60Y && bl56Y < bl55Y && bl57Y < bl56Y && bl57Y > bl60Y, {
+      expected: "BL55–57 monotonically descend between BL40 popliteal and BL60 ankle",
+      bl40Y: toFixed(bl40Y), bl55Y: toFixed(bl55Y), bl56Y: toFixed(bl56Y), bl57Y: toFixed(bl57Y), bl60Y: toFixed(bl60Y),
+    });
+  }
+
+  for (const id of ["GB35", "GB36", "GB37", "GB38"]) {
+    for (const side of ["left", "right"]) {
+      const pointY = y(id, side);
+      require(`lower-leg-${id}-${side}`, Number.isFinite(pointY) && between(pointY, 0.12, 0.26), {
+        expected: "GB35–38 are 7/7/5/4 cun above the lateral malleolus", pointY: toFixed(pointY),
+      });
+    }
+  }
+
+  for (const side of ["left", "right"]) {
+    const lr8Y = y("LR8", side);
+    const lr9Y = y("LR9", side);
+    const lr10Y = y("LR10", side);
+    const lr11Y = y("LR11", side);
+    const lr12Y = y("LR12", side);
+    require(`LR-knee-thigh-groin-${side}`, hasY(lr8Y, lr9Y, lr10Y, lr11Y, lr12Y)
+      && between(lr8Y, 0.33, 0.46) && between(lr9Y, 0.46, 0.64) && between(lr10Y, 0.55, 0.71)
+      && between(lr11Y, 0.62, 0.80) && between(lr12Y, 0.70, 0.86), {
+      expected: "LR8 popliteal → LR9–11 medial thigh → LR12 groin", lr8Y: toFixed(lr8Y), lr9Y: toFixed(lr9Y), lr10Y: toFixed(lr10Y), lr11Y: toFixed(lr11Y), lr12Y: toFixed(lr12Y),
+    });
+  }
+
+  const intercostal = [
+    ["CV16", "SP17", "KI22"], ["CV17", "SP18", "KI23"], ["CV18", "SP19", "KI24"],
+    ["CV19", "SP20", "KI25"], ["CV20", null, "KI26"], ["CV21", null, "KI27"],
+  ];
+  for (const [cv, sp, ki] of intercostal) {
+    const cvY = y(cv, "midline");
+    for (const side of ["left", "right"]) {
+      const paired = [sp ? y(sp, side) : null, y(ki, side)].filter(Number.isFinite);
+      require(`intercostal-${cv}-${sp || "none"}-${ki}-${side}`, Number.isFinite(cvY) && paired.every((value) => Math.abs(value - cvY) <= 0.065), {
+        expected: "same named CV intercostal/sternal level (±65 mm mesh allowance)", cvY: toFixed(cvY), pairedY: paired.map((value) => toFixed(value)),
+      });
+    }
+  }
+  return { contractCount: 64, failures };
+}
+
+// These pairs are source-distinct locations that previously collapsed onto a
+// single wrist/palm/foot or arm triangle.  Tiny skin distances are hard
+// failures; a 8–20 mm separation is reported for reviewer follow-up without
+// pretending it proves clinical spacing on the generic body model.
+const SOURCE_DISTINCT_CROSS_ROUTE_PAIRS = [
+  ["LU11", "LI2"], ["HT9", "SI1"], ["LI10", "SI8"], ["LI11", "TE12"], ["SP3", "KI2"], ["BL65", "BL67"],
+];
+
+function auditSourceDistinctCrossRoutePairs(instances) {
+  const byIdAndSide = new Map(instances.map((instance) => [`${instance.id}:${instance.laterality}`, instance]));
+  const hardFailures = [];
+  const reviewPairs = [];
+  for (const [leftId, rightId] of SOURCE_DISTINCT_CROSS_ROUTE_PAIRS) {
+    for (const side of ["left", "right"]) {
+      const left = byIdAndSide.get(`${leftId}:${side}`);
+      const right = byIdAndSide.get(`${rightId}:${side}`);
+      if (!left || !right) {
+        hardFailures.push({ pair: `${leftId}/${rightId}`, side, reason: "missing-side-instance" });
+        continue;
+      }
+      const separation = distance(left.anchorPosition, right.anchorPosition);
+      const entry = { pair: `${leftId}/${rightId}`, side, separation: toFixed(separation, 6) };
+      if (separation < 0.008) hardFailures.push({ ...entry, reason: "source-distinct-points-collapsed-under-8mm" });
+      else if (separation < 0.02) reviewPairs.push({ ...entry, reason: "source-distinct-points-within-20mm" });
+    }
+  }
+  return { hardFailures, reviewPairs };
+}
+
 function routeSummaries(instances, collisions) {
   const summaries = new Map();
   for (const instance of instances) {
@@ -646,7 +876,7 @@ function collapseKey(pair) {
   return `${pair.route}:${pair.laterality}:${pair.from}->${pair.to}`;
 }
 
-function makeReport(dataset, surface, instances, missing, collisions, sourceEvidenceFailures, laterality) {
+function makeReport(dataset, surface, instances, missing, collisions, sourceEvidenceFailures, laterality, independentBodyRegions, landmarkContracts, sourceDistinctPairs) {
   const routes = routeSummaries(instances, collisions);
   const counts = Object.fromEntries(["pass", "warning", "critical", "integrity"].map((key) => [key, instances.filter((instance) => instance.severity === key).length]));
   const constraints = instances.filter((instance) => instance.hasDirectionalConstraint).length;
@@ -720,6 +950,23 @@ function makeReport(dataset, surface, instances, missing, collisions, sourceEvid
         region: instance.region,
       })),
     },
+    independentSourceRegionCoverage: {
+      passed: independentBodyRegions.canonicalPointCoverage === "361/361"
+        && independentBodyRegions.markerInstanceCoverage === "670/670"
+        && independentBodyRegions.failures.length === 0,
+      ...independentBodyRegions,
+      reason: "Canonical point-number regions are independently mapped before inspecting raw route surface tags.",
+    },
+    independentLandmarkContracts: {
+      passed: landmarkContracts.failures.length === 0,
+      ...landmarkContracts,
+      reason: "Cross-channel vertebral, sacral, ankle, calf, thigh/groin, and intercostal relationships are checked independently of route labels.",
+    },
+    sourceDistinctCrossRoutePairs: {
+      passed: sourceDistinctPairs.hardFailures.length === 0,
+      ...sourceDistinctPairs,
+      reason: "Known source-distinct point pairs cannot collapse into one Skin_Body landing under 8 mm.",
+    },
     sequentialCollisions: {
       passed: unapprovedCollapsedSequentialPairs.length === 0,
       approvedAllowlist: [...APPROVED_SEQUENTIAL_COLLAPSES],
@@ -750,6 +997,15 @@ function makeReport(dataset, surface, instances, missing, collisions, sourceEvid
       semanticSurfaceMismatches: instances.filter((instance) => instance.directionFailures.length).length,
       semanticReviewMismatches: instances.filter((instance) => instance.directionReviewFailures.length).length,
       regionBandMismatches: instances.filter((instance) => instance.regionFailure).length,
+    },
+    independentAnatomy: {
+      bodyRegionCoverage: independentBodyRegions.canonicalPointCoverage,
+      markerInstanceCoverage: independentBodyRegions.markerInstanceCoverage,
+      bodyRegionFailures: independentBodyRegions.failures,
+      landmarkContractCount: landmarkContracts.contractCount,
+      landmarkContractFailures: landmarkContracts.failures,
+      sourceDistinctHardFailures: sourceDistinctPairs.hardFailures,
+      sourceDistinctReviewPairs: sourceDistinctPairs.reviewPairs,
     },
     projection: {
       over35mm: instances.filter((instance) => instance.projectionDistance > 0.035).length,
@@ -792,7 +1048,7 @@ function makeReport(dataset, surface, instances, missing, collisions, sourceEvid
 }
 
 function printTextReport(report) {
-  const { coverage, attachmentIntegrity, directionContract, projection, severities, hardGates, modelBinding } = report;
+  const { coverage, attachmentIntegrity, directionContract, projection, severities, hardGates, modelBinding, independentAnatomy } = report;
   console.log("3D surface-fit audit");
   console.log(`Model binding: ${modelBinding.fingerprintMatches ? "fingerprint match" : "FINGERPRINT MISMATCH"}; ${modelBinding.transformsIdentity ? "identity node path" : "NON-IDENTITY NODE PATH"}.`);
   console.log(`Coverage: ${coverage.canonicalPoints} canonical points; ${coverage.markerInstances}/${coverage.expectedMarkerInstances ?? "?"} marker instances.`);
@@ -800,6 +1056,8 @@ function printTextReport(report) {
   console.log(`Directional contract: ${directionContract.constrainedInstances}/${coverage.markerInstances} constrained; ${directionContract.unconstrainedInstances} unconstrained.`);
   console.log(`Expected-surface checks: ${directionContract.normalDotBelow055} raw-normal diagnostics; ${directionContract.semanticSurfaceMismatches} hard front/back/side mismatches; ${directionContract.semanticReviewMismatches} curved-surface review warnings; ${directionContract.regionBandMismatches} mesh-band mismatches.`);
   console.log(`Projection distance: ${projection.over35mm} over 35 mm; ${projection.over75mm} over 75 mm; max ${projection.maxDistance.toFixed(3)} m.`);
+  console.log(`Independent source-region coverage: ${independentAnatomy.bodyRegionCoverage} points; ${independentAnatomy.markerInstanceCoverage} instances; ${independentAnatomy.bodyRegionFailures.length} band failures.`);
+  console.log(`Independent landmark contracts: ${independentAnatomy.landmarkContractCount}; ${independentAnatomy.landmarkContractFailures.length} failures; source-distinct hard collisions ${independentAnatomy.sourceDistinctHardFailures.length}.`);
   console.log(`Severity: ${severities.pass} pass, ${severities.warning} warning, ${severities.critical} critical, ${severities.integrity} attachment-integrity failure.`);
   console.log(`Strict hard gates: ${hardGates.passed ? "PASS" : "FAIL"}. Curved-surface review warnings remain clinical-review work, not an approval claim.`);
 
@@ -840,7 +1098,21 @@ const { instances, missing } = auditInstances(dataset, surface);
 const collisions = auditRouteCompression(instances);
 const sourceEvidenceFailures = auditSourceEvidence(dataset);
 const laterality = auditLaterality(dataset);
-const report = makeReport(dataset, surface, instances, missing, collisions, sourceEvidenceFailures, laterality);
+const independentBodyRegions = auditIndependentBodyRegions(instances);
+const landmarkContracts = auditIndependentLandmarkContracts(instances);
+const sourceDistinctPairs = auditSourceDistinctCrossRoutePairs(instances);
+const report = makeReport(
+  dataset,
+  surface,
+  instances,
+  missing,
+  collisions,
+  sourceEvidenceFailures,
+  laterality,
+  independentBodyRegions,
+  landmarkContracts,
+  sourceDistinctPairs,
+);
 
 if (JSON_MODE) {
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
