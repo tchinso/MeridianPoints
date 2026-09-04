@@ -6,6 +6,16 @@
     <title>경혈 학습</title>
     <link rel="icon" href="assets/icons/Meridian.webp" type="image/webp" />
     <link rel="stylesheet" href="styles.css" />
+    <!-- The local Three.js files are deliberately kept out of the initial app load.
+         app.js imports them only when a learner opens the 3D viewer. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./assets/vendor/three/three.module.js",
+          "three/addons/": "./assets/vendor/three/addons/"
+        }
+      }
+    </script>
     <script type="module" src="app.js"></script>
   </head>
   <body>
@@ -42,6 +52,50 @@
           <input id="searchInput" type="search" autocomplete="off" placeholder="예: 합곡" />
         </label>
         <div class="search-results" id="searchResults"></div>
+      </section>
+    </div>
+
+    <div class="model-viewer-sheet" id="modelViewerSheet" hidden>
+      <div class="model-viewer-backdrop" data-close-three-d></div>
+      <section
+        class="model-viewer-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modelViewerTitle"
+        aria-describedby="modelViewerLegend modelViewerHint"
+      >
+        <header class="model-viewer-header">
+          <div>
+            <p class="model-viewer-kicker">3D 인체 모형</p>
+            <h2 id="modelViewerTitle">3D로 보기</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-three-d aria-label="3D 보기 닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="three-d-stage" id="modelViewerStage" data-state="idle" aria-label="회전 가능한 3D 인체 모형">
+          <div class="three-d-stage-fallback" id="modelViewerFallback" role="status" aria-live="polite">
+            <div class="three-d-loader" aria-hidden="true"></div>
+            <p id="modelViewerStatus">3D 인체 모형을 준비하는 중입니다.</p>
+            <p class="three-d-detail" id="modelViewerDetail"></p>
+            <button class="three-d-retry" id="modelViewerRetry" type="button" data-three-d-action="retry" hidden>다시 시도</button>
+          </div>
+        </div>
+
+        <div class="model-viewer-toolbar">
+          <p class="model-viewer-target" id="modelViewerTarget">선택한 혈자리를 표시합니다.</p>
+          <button class="model-viewer-reset" type="button" data-three-d-action="reset-camera">초점 재설정</button>
+        </div>
+
+        <div class="model-viewer-legend" id="modelViewerLegend" aria-label="점 표시 범례">
+          <span><i class="marker-key marker-key-target" aria-hidden="true"></i>현재 혈자리</span>
+          <span><i class="marker-key marker-key-nearby" aria-hidden="true"></i>주변 혈자리</span>
+        </div>
+        <p class="model-viewer-hint" id="modelViewerHint">한 손가락으로 회전 · 두 손가락으로 확대하거나 이동할 수 있습니다.</p>
+        <p class="model-viewer-safety-note">3D 위치는 학습 보조용 추정 표면입니다. 임상 취혈은 원문과 전문가 지도를 따르세요.</p>
       </section>
     </div>
   </body>

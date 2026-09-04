@@ -1,4 +1,5 @@
 const DATA_URL = "assets/json/meridians.json";
+const ACUPOINT_3D_DATA_URL = "assets/json/acupoint-3d.json";
 const QUESTION_LIMITS = [10, 25, 50];
 const IMAGE_PRELOAD_LOOKAHEAD = 6;
 const SPECIAL_UNIT_TITLE = "요혈·오수혈·오행혈";
@@ -36,6 +37,15 @@ const homeButton = document.querySelector("#homeButton");
 const searchSheet = document.querySelector("#searchSheet");
 const searchInput = document.querySelector("#searchInput");
 const searchResults = document.querySelector("#searchResults");
+const modelViewerSheet = document.querySelector("#modelViewerSheet");
+const modelViewerStage = document.querySelector("#modelViewerStage");
+const modelViewerFallback = document.querySelector("#modelViewerFallback");
+const modelViewerTitle = document.querySelector("#modelViewerTitle");
+const modelViewerStatus = document.querySelector("#modelViewerStatus");
+const modelViewerDetail = document.querySelector("#modelViewerDetail");
+const modelViewerTarget = document.querySelector("#modelViewerTarget");
+const modelViewerRetry = document.querySelector("#modelViewerRetry");
+const modelViewerCloseButton = modelViewerSheet?.querySelector("button[data-close-three-d]");
 
 let data = null;
 let allPoints = [];
@@ -54,6 +64,13 @@ let activeQuiz = null;
 let feedbackTimer = null;
 let imageLongPressTimer = null;
 let suppressImageChoiceClick = false;
+let acupoint3dData = null;
+let acupoint3dDataPromise = null;
+let threeDViewer = null;
+let threeDViewerPoint = null;
+let threeDViewerOpener = null;
+let threeDViewerSession = 0;
+let threeDAnimationFrame = null;
 const IMAGE_LONG_PRESS_DELAY = 500;
 const imagePreloadCache = new Map();
 
@@ -91,12 +108,17 @@ function bindEvents() {
   searchInput.addEventListener("input", () => renderSearchResults(searchInput.value));
   searchResults.addEventListener("click", handleSearchResultClick);
 
+  if (modelViewerSheet) {
+    modelViewerSheet.addEventListener("click", handleThreeDViewerClick);
+  }
+
   searchSheet.addEventListener("click", (event) => {
     if (event.target.closest("[data-close-search]")) closeSearch();
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (closeThreeDViewer()) return;
       if (closeTermDefinitions()) return;
       if (closeImagePreview()) return;
       if (!searchSheet.hidden) closeSearch();
@@ -106,6 +128,873 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("[data-close-image-preview]")) closeImagePreview();
   });
+}
+
+/*
+ * Optional local 3D data lives separately from meridians.json so anatomical
+ * assets and calibrated anchors can evolve independently. Expected shape:
+ * {
+ *   "model": { "url": "assets/models/human-anatomy.glb", "camera": {} },
+ *   "points": {
+ *     "CV16": {
+ *       "instances": [
+ *         { "instanceId": "CV16:M", "anchor": { "position": [x, y, z], "normal": [x, y, z] } }
+ *       ]
+ *     }
+ *   }
+ * }
+ * A canonical point may expose two left/right instances. The viewer renders
+ * every instance in the target or curated comparison entry, so a bilateral
+ * point produces two surface markers without inventing duplicate point IDs.
+ * A point may include `focus: { distance, mobileDistance, target }`. An anchor
+ * may instead use { mesh, triangle, barycentric } to attach a point to an
+ * exact triangle on the supplied GLB surface. Rotations are radians.
+ */
+async function loadAcupoint3DData({ force = false } = {}) {
+  if (acupoint3dData && !force) return acupoint3dData;
+
+  if (!acupoint3dDataPromise || force) {
+    acupoint3dDataPromise = fetch(ACUPOINT_3D_DATA_URL, {
+      cache: force ? "reload" : "default",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`3D data request failed: ${response.status}`);
+        return response.json();
+      })
+      .then(normalizeAcupoint3DData)
+      .then((value) => {
+        acupoint3dData = value;
+        return value;
+      });
+  }
+
+  return acupoint3dDataPromise;
+}
+
+function normalizeAcupoint3DData(rawData) {
+  if (!rawData || typeof rawData !== "object") {
+    throw new Error("3D data is not an object");
+  }
+
+  const rawPoints = rawData.points || rawData.acupoints;
+  const points = Array.isArray(rawPoints)
+    ? Object.fromEntries(rawPoints.filter((entry) => entry?.id).map((entry) => [entry.id, entry]))
+    : rawPoints;
+  const rawModel = rawData.model && typeof rawData.model === "object" ? rawData.model : {};
+  const modelUrl = rawModel.url || rawModel.src || rawData.modelUrl;
+
+  if (!points || typeof points !== "object") {
+    throw new Error("3D point anchors are missing");
+  }
+
+  if (typeof modelUrl !== "string" || !modelUrl.trim()) {
+    throw new Error("3D model URL is missing");
+  }
+
+  return {
+    ...rawData,
+    model: {
+      ...rawModel,
+      url: modelUrl,
+    },
+    points,
+  };
+}
+
+function handleThreeDViewerClick(event) {
+  if (event.target.closest("[data-close-three-d]")) {
+    closeThreeDViewer();
+    return;
+  }
+
+  const button = event.target.closest("[data-three-d-action]");
+  if (!button) return;
+
+  if (button.dataset.threeDAction === "reset-camera") {
+    resetThreeDView();
+  }
+
+  if (button.dataset.threeDAction === "retry" && threeDViewerPoint) {
+    openThreeDViewer(threeDViewerPoint, threeDViewerOpener, {
+      refreshData: true,
+      reloadModel: true,
+    });
+  }
+}
+
+async function openThreeDViewer(point, opener = null, options = {}) {
+  if (!modelViewerSheet || !modelViewerStage) return;
+
+  const session = ++threeDViewerSession;
+  threeDViewerPoint = point;
+  threeDViewerOpener = opener || document.activeElement;
+  modelViewerSheet.hidden = false;
+  document.body.classList.add("is-three-d-open");
+  modelViewerTitle.textContent = `${point.id} ${point.name} 3D 위치`;
+  modelViewerTarget.textContent = `${point.id} ${point.name}의 위치를 표시합니다.`;
+  setThreeDViewerState("loading", "3D 인체 모형을 불러오는 중입니다.");
+  requestAnimationFrame(() => modelViewerCloseButton?.focus());
+
+  try {
+    const dataset = await loadAcupoint3DData({ force: options.refreshData });
+    if (!isThreeDViewerSessionCurrent(session)) return;
+
+    const targetEntry = getThreeDPointEntry(dataset, point.id);
+    if (!targetEntry) {
+      setThreeDViewerState(
+        "unavailable",
+        "이 혈자리의 3D 위치 데이터가 아직 준비되지 않았습니다.",
+        "학습 이미지와 설명은 계속 이용할 수 있습니다.",
+      );
+      return;
+    }
+
+    await ensureThreeDViewer(dataset, { reloadModel: options.reloadModel });
+    if (!isThreeDViewerSessionCurrent(session)) return;
+
+    focusThreeDPoint(threeDViewer, dataset, point, targetEntry);
+    setThreeDViewerState("ready", "3D 인체 모형을 표시했습니다.");
+    startThreeDRenderLoop();
+  } catch (error) {
+    if (!isThreeDViewerSessionCurrent(session)) return;
+    console.warn("Unable to open local 3D viewer", error);
+    setThreeDViewerState(
+      "error",
+      "3D 인체 모형을 준비하지 못했습니다.",
+      getThreeDViewerErrorMessage(error),
+    );
+  }
+}
+
+function isThreeDViewerSessionCurrent(session) {
+  return !modelViewerSheet?.hidden && session === threeDViewerSession;
+}
+
+function setThreeDViewerState(state, message, detail = "") {
+  if (!modelViewerStage) return;
+
+  modelViewerStage.dataset.state = state;
+  modelViewerFallback.hidden = state === "ready";
+  modelViewerStatus.textContent = message;
+  modelViewerDetail.textContent = detail;
+  modelViewerDetail.hidden = !detail;
+  modelViewerRetry.hidden = state !== "error";
+}
+
+function getThreeDViewerErrorMessage(error) {
+  if (error instanceof TypeError && /fetch|import/i.test(error.message)) {
+    return "로컬 3D 파일이 아직 연결되지 않았거나 불러올 수 없습니다. 파일을 확인한 뒤 다시 시도하세요.";
+  }
+
+  if (/WebGL/i.test(String(error?.message || error))) {
+    return "이 기기에서 3D 그래픽을 시작할 수 없습니다. 브라우저 설정을 확인한 뒤 다시 시도하세요.";
+  }
+
+  return "3D 데이터 또는 인체 모형 파일을 확인한 뒤 다시 시도하세요.";
+}
+
+async function ensureThreeDViewer(dataset, { reloadModel = false } = {}) {
+  if (!threeDViewer) {
+    threeDViewer = await createThreeDViewer();
+  }
+
+  const modelKey = getThreeDModelKey(dataset.model);
+  if (reloadModel || threeDViewer.modelKey !== modelKey || !threeDViewer.model) {
+    await loadThreeDModel(threeDViewer, dataset);
+  }
+
+  resizeThreeDViewer();
+  return threeDViewer;
+}
+
+function getThreeDModelKey(model) {
+  return JSON.stringify({
+    url: model.url,
+    position: model.position,
+    rotation: model.rotation,
+    scale: model.scale,
+    dracoDecoderPath: model.dracoDecoderPath,
+    ktx2TranscoderPath: model.ktx2TranscoderPath,
+    meshopt: model.meshopt || model.meshoptDecoder,
+  });
+}
+
+async function createThreeDViewer() {
+  const [THREE, gltfLoaderModule, orbitControlsModule] = await Promise.all([
+    import("three"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/controls/OrbitControls.js"),
+  ]);
+  const { GLTFLoader } = gltfLoaderModule;
+  const { OrbitControls } = orbitControlsModule;
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    powerPreference: "high-performance",
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.domElement.className = "three-d-canvas";
+  renderer.domElement.setAttribute("aria-hidden", "true");
+  modelViewerStage.append(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x10231e);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.01, 100);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = true;
+  controls.enableZoom = true;
+  controls.screenSpacePanning = true;
+  controls.touches.ONE = THREE.TOUCH.ROTATE;
+  controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+
+  const hemisphereLight = new THREE.HemisphereLight(0xf0fff6, 0x12251f, 1.65);
+  const keyLight = new THREE.DirectionalLight(0xfff7ee, 2.25);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(1024, 1024);
+  keyLight.shadow.bias = -0.00015;
+  const fillLight = new THREE.DirectionalLight(0xd9f0ff, 0.86);
+  const rimLight = new THREE.DirectionalLight(0xb8ecd6, 1.28);
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(8, 96),
+    new THREE.MeshStandardMaterial({ color: 0x0b1814, roughness: 0.92, metalness: 0 }),
+  );
+  ground.name = "ViewerGround";
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(hemisphereLight, keyLight, fillLight, rimLight, ground);
+
+  const markerGroup = new THREE.Group();
+  markerGroup.name = "AcupointMarkers";
+  scene.add(markerGroup);
+
+  const viewer = {
+    THREE,
+    GLTFLoader,
+    OrbitControls,
+    renderer,
+    scene,
+    camera,
+    controls,
+    hemisphereLight,
+    keyLight,
+    fillLight,
+    rimLight,
+    ground,
+    markerGroup,
+    model: null,
+    modelKey: null,
+    bounds: null,
+    defaultCamera: null,
+    currentPointId: null,
+    resizeObserver: null,
+    dracoLoader: null,
+    ktx2Loader: null,
+  };
+
+  controls.addEventListener("change", renderThreeDFrame);
+  if (typeof ResizeObserver !== "undefined") {
+    viewer.resizeObserver = new ResizeObserver(resizeThreeDViewer);
+    viewer.resizeObserver.observe(modelViewerStage);
+  } else {
+    window.addEventListener("resize", resizeThreeDViewer, { passive: true });
+  }
+
+  return viewer;
+}
+
+async function loadThreeDModel(viewer, dataset) {
+  clearThreeDModel(viewer);
+  disposeThreeDLoaders(viewer);
+
+  const loader = await createThreeDModelLoader(viewer, dataset.model);
+  const gltf = await loader.loadAsync(dataset.model.url);
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error("GLB scene is missing");
+
+  applyThreeDModelTransform(viewer.THREE, model, dataset.model);
+  applyDefaultThreeDLayerVisibility(model, dataset.model);
+  prepareThreeDModelSurface(viewer.THREE, model);
+  model.updateMatrixWorld(true);
+  viewer.scene.add(model);
+
+  const bounds = new viewer.THREE.Box3().setFromObject(model);
+  if (bounds.isEmpty()) {
+    viewer.scene.remove(model);
+    disposeThreeDObject(model);
+    throw new Error("GLB scene has no renderable bounds");
+  }
+
+  viewer.model = model;
+  viewer.modelKey = getThreeDModelKey(dataset.model);
+  viewer.bounds = bounds;
+  configureThreeDScene(viewer, dataset);
+}
+
+async function createThreeDModelLoader(viewer, modelConfig) {
+  const loader = new viewer.GLTFLoader();
+
+  if (modelConfig.dracoDecoderPath) {
+    const { DRACOLoader } = await import("three/addons/loaders/DRACOLoader.js");
+    viewer.dracoLoader = new DRACOLoader();
+    viewer.dracoLoader.setDecoderPath(modelConfig.dracoDecoderPath);
+    loader.setDRACOLoader(viewer.dracoLoader);
+  }
+
+  if (modelConfig.ktx2TranscoderPath) {
+    const { KTX2Loader } = await import("three/addons/loaders/KTX2Loader.js");
+    viewer.ktx2Loader = new KTX2Loader();
+    viewer.ktx2Loader.setTranscoderPath(modelConfig.ktx2TranscoderPath);
+    viewer.ktx2Loader.detectSupport(viewer.renderer);
+    loader.setKTX2Loader(viewer.ktx2Loader);
+  }
+
+  if (modelConfig.meshopt || modelConfig.meshoptDecoder) {
+    const { MeshoptDecoder } = await import("three/addons/libs/meshopt_decoder.module.js");
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  }
+
+  return loader;
+}
+
+function applyThreeDModelTransform(THREE, model, modelConfig) {
+  const position = readThreeDVector3(THREE, modelConfig.position);
+  const rotation = readThreeDVector3(THREE, modelConfig.rotation);
+  const scaleVector = readThreeDVector3(THREE, modelConfig.scale);
+  const uniformScale = Number(modelConfig.scale);
+
+  if (position) model.position.copy(position);
+  if (rotation) model.rotation.set(rotation.x, rotation.y, rotation.z);
+  if (scaleVector) {
+    model.scale.copy(scaleVector);
+  } else if (Number.isFinite(uniformScale) && uniformScale > 0) {
+    model.scale.setScalar(uniformScale);
+  }
+}
+
+function applyDefaultThreeDLayerVisibility(model, modelConfig) {
+  const hiddenLayers = new Set(modelConfig.hiddenLayers || ["Layer_Muscle", "Layer_Skeleton", "Layer_Landmark"]);
+  const shownLayers = new Set(modelConfig.visibleLayers || []);
+
+  model.traverse((node) => {
+    if (hiddenLayers.has(node.name)) node.visible = false;
+    if (shownLayers.has(node.name)) node.visible = true;
+  });
+}
+
+function prepareThreeDModelSurface(THREE, model) {
+  model.traverse((node) => {
+    if (!node.isMesh) return;
+
+    node.castShadow = true;
+    node.receiveShadow = true;
+    // Some anatomical source meshes carry faceted STL-derived normals. Rebuild
+    // the continuous skin normals after loading so light reveals form rather
+    // than polygon seams on a phone-sized canvas.
+    node.geometry?.computeVertexNormals?.();
+    node.geometry?.normalizeNormals?.();
+
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      if (!material?.isMeshStandardMaterial) continue;
+
+      // Preserve authored skin textures, while avoiding a glossy, toy-like
+      // appearance when a local anatomy asset uses a simple PBR material.
+      material.metalness = 0;
+      if (!material.map) material.roughness = Math.max(material.roughness ?? 0.58, 0.58);
+      material.envMapIntensity = Math.min(material.envMapIntensity ?? 1, 0.75);
+      // The teaching body is a closed exterior surface. Rendering both sides
+      // creates moiré-like self-overlap on thin limbs and the face in mobile
+      // WebGL, so explicitly cull the interior backfaces.
+      material.side = THREE.FrontSide;
+      material.needsUpdate = true;
+    }
+  });
+}
+
+function configureThreeDScene(viewer, dataset) {
+  const { THREE, bounds, camera, controls, keyLight, hemisphereLight, fillLight, rimLight, ground } = viewer;
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const largestDimension = Math.max(size.x, size.y, size.z, 0.01);
+  const cameraConfig = dataset.model.camera || {};
+  const configuredTarget = readThreeDVector3(THREE, cameraConfig.target);
+  const configuredPosition = readThreeDVector3(THREE, cameraConfig.position);
+
+  camera.fov = getFiniteNumber(cameraConfig.fov, 36);
+  camera.near = getPositiveNumber(cameraConfig.near, Math.max(largestDimension / 1000, 0.001));
+  camera.far = getPositiveNumber(cameraConfig.far, Math.max(largestDimension * 24, 100));
+  controls.target.copy(configuredTarget || center);
+
+  if (configuredPosition) {
+    camera.position.copy(configuredPosition);
+  } else {
+    camera.position.set(center.x, center.y + size.y * 0.03, center.z + largestDimension * 1.65);
+  }
+
+  controls.minDistance = getPositiveNumber(cameraConfig.minDistance, largestDimension * 0.08);
+  controls.maxDistance = getPositiveNumber(cameraConfig.maxDistance, largestDimension * 6);
+  keyLight.position.set(
+    bounds.max.x + largestDimension,
+    bounds.max.y + largestDimension * 1.3,
+    bounds.max.z + largestDimension,
+  );
+  fillLight.position.set(
+    bounds.min.x - largestDimension * 1.2,
+    center.y + largestDimension * 0.35,
+    bounds.max.z + largestDimension * 0.65,
+  );
+  rimLight.position.set(
+    bounds.max.x + largestDimension * 0.45,
+    bounds.max.y + largestDimension * 0.6,
+    bounds.min.z - largestDimension * 1.25,
+  );
+  keyLight.target.position.copy(center);
+  fillLight.target.position.copy(center);
+  rimLight.target.position.copy(center);
+  sceneAddLightTargets(viewer.scene, keyLight, fillLight, rimLight);
+  ground.position.set(center.x, bounds.min.y - largestDimension * 0.002, center.z);
+  keyLight.shadow.camera.left = -largestDimension;
+  keyLight.shadow.camera.right = largestDimension;
+  keyLight.shadow.camera.top = largestDimension;
+  keyLight.shadow.camera.bottom = -largestDimension;
+  keyLight.shadow.camera.near = largestDimension * 0.05;
+  keyLight.shadow.camera.far = largestDimension * 5;
+  keyLight.shadow.camera.updateProjectionMatrix();
+  hemisphereLight.intensity = getPositiveNumber(dataset.model.hemisphereIntensity, 1.8);
+  keyLight.intensity = getPositiveNumber(dataset.model.keyLightIntensity, 2.1);
+  camera.updateProjectionMatrix();
+  controls.update();
+
+  viewer.defaultCamera = {
+    position: camera.position.clone(),
+    target: controls.target.clone(),
+    fov: camera.fov,
+    focusDistance: getPositiveNumber(cameraConfig.focusDistance, largestDimension * 0.68),
+  };
+}
+
+function sceneAddLightTargets(scene, ...lights) {
+  for (const light of lights) {
+    if (light?.target && !light.target.parent) scene.add(light.target);
+  }
+}
+
+function focusThreeDPoint(viewer, dataset, point, entry) {
+  const targetAnchors = resolveThreeDEntryAnchors(viewer, entry, dataset);
+  if (!targetAnchors.length) throw new Error("3D anchor position is missing");
+
+  const anchor = targetAnchors[0];
+  const anchorCenter = getThreeDAnchorCenter(viewer.THREE, targetAnchors);
+  const anchorNormal = getThreeDAnchorNormal(viewer.THREE, targetAnchors) || anchor.normal;
+  const { THREE, camera, controls } = viewer;
+  const markerRadius = getMarkerRadius(viewer, dataset, entry);
+
+  clearThreeDMarkers(viewer);
+  for (const [index, targetAnchor] of targetAnchors.entries()) {
+    const markerId = targetAnchors.length > 1 ? `${point.id}:${index + 1}` : point.id;
+    viewer.markerGroup.add(createThreeDMarker(viewer, targetAnchor.position, markerRadius * 1.22, 0xe63838, markerId));
+  }
+
+  const nearbyIds = getNearbyPointIds(dataset, point.id, entry);
+  let nearbyCount = 0;
+  for (const nearbyId of nearbyIds) {
+    const nearbyEntry = getThreeDPointEntry(dataset, nearbyId);
+    if (!nearbyEntry) continue;
+
+    try {
+      const nearbyAnchors = resolveThreeDEntryAnchors(viewer, nearbyEntry, dataset);
+      for (const [index, nearbyAnchor] of nearbyAnchors.entries()) {
+        const markerId = nearbyAnchors.length > 1 ? `${nearbyId}:${index + 1}` : nearbyId;
+        viewer.markerGroup.add(createThreeDMarker(viewer, nearbyAnchor.position, markerRadius, 0x060807, markerId));
+        nearbyCount += 1;
+      }
+    } catch (error) {
+      console.warn(`Skipping invalid 3D marker: ${nearbyId}`, error);
+    }
+  }
+
+  const focus = getThreeDFocus(entry);
+  const focusTarget = readThreeDVector3(THREE, focus.target) || anchorCenter;
+  const focusPosition = readThreeDVector3(THREE, focus.cameraPosition || focus.position);
+  camera.fov = getThreeDFocusFov(focus, camera.aspect, viewer.defaultCamera.fov);
+  camera.updateProjectionMatrix();
+  if (focusPosition) {
+    camera.position.copy(focusPosition);
+  } else {
+    const fallbackDirection = viewer.defaultCamera.position.clone().sub(viewer.defaultCamera.target);
+    const direction = anchorNormal?.clone().normalize() || fallbackDirection.normalize();
+    const distance = getThreeDFocusDistance(focus, viewer.defaultCamera.focusDistance);
+    camera.position.copy(focusTarget).addScaledVector(direction, distance);
+  }
+
+  controls.target.copy(focusTarget);
+  controls.update();
+  viewer.currentPointId = point.id;
+  viewer.currentDataset = dataset;
+  modelViewerTarget.textContent = nearbyCount
+    ? `${point.id} ${point.name} · 주변 ${nearbyCount}혈을 함께 표시합니다.`
+    : `${point.id} ${point.name}을(를) 빨간 점으로 표시합니다.`;
+  renderThreeDFrame();
+}
+
+function getThreeDAnchorCenter(THREE, anchors) {
+  return anchors
+    .reduce((center, anchor) => center.add(anchor.position), new THREE.Vector3())
+    .multiplyScalar(1 / anchors.length);
+}
+
+function getThreeDAnchorNormal(THREE, anchors) {
+  const normals = anchors.filter((anchor) => anchor.normal?.isVector3).map((anchor) => anchor.normal);
+  if (!normals.length) return null;
+
+  const combined = normals.reduce((sum, normal) => sum.add(normal), new THREE.Vector3());
+  return combined.lengthSq() > 0.000001 ? combined.normalize() : normals[0].clone().normalize();
+}
+
+function resolveThreeDEntryAnchors(viewer, entry, dataset) {
+  const instances = getThreeDEntryInstances(entry);
+  return instances.map((instance) => resolveThreeDAnchor(viewer, instance, dataset));
+}
+
+function getThreeDEntryInstances(entry) {
+  const instances = Array.isArray(entry?.instances)
+    ? entry.instances.filter((instance) => instance && typeof instance === "object")
+    : [];
+  return instances.length ? instances : [entry];
+}
+
+function resolveThreeDAnchor(viewer, entry, dataset) {
+  const anchor = getThreeDAnchor(entry);
+  const directPosition = readThreeDVector3(viewer.THREE, anchor.position || anchor.worldPosition);
+  const directNormal = readThreeDVector3(viewer.THREE, anchor.normal);
+
+  if (directPosition) {
+    return {
+      position: applyMarkerOffset(directPosition, directNormal, getMarkerOffset(entry, anchor, dataset)),
+      normal: directNormal,
+    };
+  }
+
+  if (!anchor.mesh || !Number.isInteger(anchor.triangle) || !Array.isArray(anchor.barycentric)) {
+    throw new Error("3D anchor position is missing");
+  }
+
+  const mesh = viewer.model?.getObjectByName(anchor.mesh);
+  const positionAttribute = mesh?.geometry?.getAttribute("position");
+  if (!mesh?.isMesh || !positionAttribute) {
+    throw new Error(`Anchor mesh is missing: ${anchor.mesh}`);
+  }
+
+  const barycentric = anchor.barycentric.map(Number);
+  if (barycentric.length !== 3 || barycentric.some((value) => !Number.isFinite(value))) {
+    throw new Error("Anchor barycentric coordinates are invalid");
+  }
+
+  const indices = getThreeDTriangleIndices(mesh.geometry, anchor.triangle);
+  if (!indices) throw new Error("Anchor triangle is outside of mesh geometry");
+
+  const { THREE } = viewer;
+  const localPosition = new THREE.Vector3()
+    .fromBufferAttribute(positionAttribute, indices[0])
+    .multiplyScalar(barycentric[0])
+    .addScaledVector(new THREE.Vector3().fromBufferAttribute(positionAttribute, indices[1]), barycentric[1])
+    .addScaledVector(new THREE.Vector3().fromBufferAttribute(positionAttribute, indices[2]), barycentric[2]);
+  const localNormal = readThreeDVector3(THREE, anchor.normal) || getThreeDTriangleNormal(THREE, mesh, indices);
+  const worldPosition = mesh.localToWorld(localPosition);
+  const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+  const worldNormal = localNormal?.applyMatrix3(normalMatrix).normalize() || null;
+
+  return {
+    position: applyMarkerOffset(worldPosition, worldNormal, getMarkerOffset(entry, anchor, dataset)),
+    normal: worldNormal,
+  };
+}
+
+function getThreeDAnchor(entry) {
+  return entry?.anchor && typeof entry.anchor === "object" ? entry.anchor : entry;
+}
+
+function getThreeDTriangleIndices(geometry, triangleIndex) {
+  const start = triangleIndex * 3;
+  const positionCount = geometry.getAttribute("position")?.count || 0;
+  const index = geometry.getIndex();
+  const indices = index
+    ? [index.getX(start), index.getX(start + 1), index.getX(start + 2)]
+    : [start, start + 1, start + 2];
+
+  return indices.every((value) => Number.isInteger(value) && value >= 0 && value < positionCount)
+    ? indices
+    : null;
+}
+
+function getThreeDTriangleNormal(THREE, mesh, indices) {
+  const normalAttribute = mesh.geometry.getAttribute("normal");
+  if (normalAttribute) {
+    return new THREE.Vector3()
+      .fromBufferAttribute(normalAttribute, indices[0])
+      .add(new THREE.Vector3().fromBufferAttribute(normalAttribute, indices[1]))
+      .add(new THREE.Vector3().fromBufferAttribute(normalAttribute, indices[2]))
+      .normalize();
+  }
+
+  const positionAttribute = mesh.geometry.getAttribute("position");
+  if (!positionAttribute) return null;
+
+  const first = new THREE.Vector3().fromBufferAttribute(positionAttribute, indices[0]);
+  const second = new THREE.Vector3().fromBufferAttribute(positionAttribute, indices[1]);
+  const third = new THREE.Vector3().fromBufferAttribute(positionAttribute, indices[2]);
+  return second.sub(first).cross(third.sub(first)).normalize();
+}
+
+function applyMarkerOffset(position, normal, offset) {
+  if (!normal || !Number.isFinite(offset) || offset === 0) return position;
+  return position.addScaledVector(normal.clone().normalize(), offset);
+}
+
+function getMarkerOffset(entry, anchor, dataset) {
+  return getFiniteNumber(
+    entry?.markerOffset
+      ?? entry?.marker?.offsetAlongNormal
+      ?? anchor?.markerOffset
+      ?? anchor?.offset
+      ?? dataset?.model?.markerOffset,
+    0.008,
+  );
+}
+
+function getThreeDFocus(entry) {
+  const anchor = getThreeDAnchor(entry);
+  return entry?.focus || anchor?.focus || {};
+}
+
+function getThreeDFocusDistance(focus, fallback) {
+  const defaultDistance = getPositiveNumber(focus.distance, fallback);
+  // A point view should stay local on a narrow phone screen; widening the
+  // camera merely because the aspect ratio is tall turns a landmark view into
+  // an unhelpful full-body shot. Users can still pinch to zoom out.
+  return getPositiveNumber(focus.mobileDistance, defaultDistance);
+}
+
+function getThreeDFocusFov(focus, aspect, fallback) {
+  const requested = aspect < 0.8 ? focus.mobileFov ?? focus.fov : focus.fov;
+  return Math.min(60, Math.max(20, getPositiveNumber(requested, fallback)));
+}
+
+function getMarkerRadius(viewer, dataset, entry) {
+  const modelRadius = dataset.model.markerRadius;
+  const requestedRadius = entry?.markerRadius ?? getThreeDAnchor(entry)?.markerRadius ?? modelRadius;
+  const automaticRadius = Math.max(viewer.bounds.getSize(new viewer.THREE.Vector3()).length() * 0.008, 0.006);
+  return getPositiveNumber(requestedRadius, automaticRadius);
+}
+
+function createThreeDMarker(viewer, position, radius, color, id) {
+  const marker = new viewer.THREE.Group();
+  const isNearbyMarker = color === 0x060807;
+
+  if (isNearbyMarker) {
+    const nearbySprite = createNearbyMarkerSprite(viewer, radius);
+    marker.add(nearbySprite);
+  } else {
+    const core = new viewer.THREE.Mesh(
+      new viewer.THREE.SphereGeometry(radius, 24, 18),
+      new viewer.THREE.MeshBasicMaterial({ color, depthTest: true, depthWrite: false }),
+    );
+    core.renderOrder = 3;
+    marker.add(core);
+  }
+  marker.name = `AcupointMarker:${id}`;
+  marker.position.copy(position);
+  return marker;
+}
+
+function createNearbyMarkerSprite(viewer, radius) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#f2fff8";
+  context.beginPath();
+  context.arc(64, 64, 54, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "#060807";
+  context.beginPath();
+  context.arc(64, 64, 43, 0, Math.PI * 2);
+  context.fill();
+
+  const texture = new viewer.THREE.CanvasTexture(canvas);
+  texture.colorSpace = viewer.THREE.SRGBColorSpace;
+  const marker = new viewer.THREE.Sprite(
+    new viewer.THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false }),
+  );
+  marker.scale.setScalar(radius * 2.32);
+  marker.renderOrder = 3;
+  return marker;
+}
+
+function getThreeDPointEntry(dataset, pointId) {
+  return dataset.points?.[pointId] || null;
+}
+
+function getNearbyPointIds(dataset, pointId, entry) {
+  const anchor = getThreeDAnchor(entry);
+  const comparison = dataset.comparisons?.[pointId] || {};
+  const curatedIds = [
+    entry?.nearby,
+    entry?.related,
+    anchor?.nearby,
+    anchor?.related,
+    comparison.nearby,
+    comparison.related,
+    entry?.neighbourRelations?.curatedComparisonDisplay,
+  ].filter(Array.isArray).flat();
+  const learningIds = entry?.neighbourRelations?.learningComparisonDisplay || [];
+  const rawIds = curatedIds.length ? curatedIds : learningIds;
+
+  return [...new Set(rawIds.map((item) => (typeof item === "string" ? item : item?.id || item?.pointId)).filter(Boolean))]
+    .filter((id) => id !== pointId);
+}
+
+function clearThreeDMarkers(viewer) {
+  while (viewer.markerGroup.children.length) {
+    const marker = viewer.markerGroup.children[0];
+    viewer.markerGroup.remove(marker);
+    disposeThreeDObject(marker);
+  }
+}
+
+function clearThreeDModel(viewer) {
+  clearThreeDMarkers(viewer);
+  if (!viewer.model) return;
+
+  viewer.scene.remove(viewer.model);
+  disposeThreeDObject(viewer.model);
+  viewer.model = null;
+  viewer.modelKey = null;
+  viewer.bounds = null;
+  viewer.defaultCamera = null;
+}
+
+function disposeThreeDLoaders(viewer) {
+  viewer.dracoLoader?.dispose();
+  viewer.ktx2Loader?.dispose();
+  viewer.dracoLoader = null;
+  viewer.ktx2Loader = null;
+}
+
+function disposeThreeDObject(object) {
+  object?.traverse?.((node) => {
+    node.geometry?.dispose?.();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const value of Object.values(material)) {
+        if (value?.isTexture) value.dispose();
+      }
+      material.dispose?.();
+    }
+  });
+}
+
+function resizeThreeDViewer() {
+  if (!threeDViewer || !modelViewerStage) return;
+
+  const width = modelViewerStage.clientWidth;
+  const height = modelViewerStage.clientHeight;
+  if (!width || !height) return;
+
+  threeDViewer.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  threeDViewer.renderer.setSize(width, height, false);
+  threeDViewer.camera.aspect = width / height;
+  threeDViewer.camera.updateProjectionMatrix();
+  renderThreeDFrame();
+}
+
+function startThreeDRenderLoop() {
+  stopThreeDRenderLoop();
+
+  const render = () => {
+    if (!threeDViewer || modelViewerSheet?.hidden) return;
+    threeDViewer.controls.update();
+    renderThreeDFrame();
+    threeDAnimationFrame = requestAnimationFrame(render);
+  };
+
+  threeDAnimationFrame = requestAnimationFrame(render);
+}
+
+function stopThreeDRenderLoop() {
+  if (threeDAnimationFrame) cancelAnimationFrame(threeDAnimationFrame);
+  threeDAnimationFrame = null;
+}
+
+function renderThreeDFrame() {
+  if (!threeDViewer) return;
+  threeDViewer.renderer.render(threeDViewer.scene, threeDViewer.camera);
+}
+
+function resetThreeDView() {
+  if (!threeDViewer || !threeDViewerPoint || !threeDViewer.currentDataset) return;
+
+  const entry = getThreeDPointEntry(threeDViewer.currentDataset, threeDViewerPoint.id);
+  if (!entry) return;
+
+  try {
+    focusThreeDPoint(threeDViewer, threeDViewer.currentDataset, threeDViewerPoint, entry);
+  } catch (error) {
+    console.warn("Unable to reset 3D view", error);
+  }
+}
+
+function closeThreeDViewer() {
+  if (!modelViewerSheet || modelViewerSheet.hidden) return false;
+
+  threeDViewerSession += 1;
+  modelViewerSheet.hidden = true;
+  document.body.classList.remove("is-three-d-open");
+  stopThreeDRenderLoop();
+
+  const opener = threeDViewerOpener;
+  threeDViewerOpener = null;
+  if (opener instanceof HTMLElement && opener.isConnected) {
+    requestAnimationFrame(() => opener.focus());
+  }
+
+  return true;
+}
+
+function readThreeDVector3(THREE, value) {
+  if (Array.isArray(value) && value.length >= 3) {
+    const [x, y, z] = value.slice(0, 3).map(Number);
+    return [x, y, z].every(Number.isFinite) ? new THREE.Vector3(x, y, z) : null;
+  }
+
+  if (value && typeof value === "object") {
+    const x = Number(value.x);
+    const y = Number(value.y);
+    const z = Number(value.z);
+    return [x, y, z].every(Number.isFinite) ? new THREE.Vector3(x, y, z) : null;
+  }
+
+  return null;
+}
+
+function getFiniteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function getPositiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
 }
 
 function decorateData() {
@@ -177,6 +1066,12 @@ function handleAppClick(event) {
         },
       });
     }
+  }
+
+  if (action === "open-3d-view") {
+    const point = pointById.get(id);
+    if (point) openThreeDViewer(point, button);
+    return;
   }
 
   if (action === "back-home") renderHome();
@@ -472,6 +1367,17 @@ function renderStudy() {
       <figure class="image-panel">
         <img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.name)} 위치 이미지" />
       </figure>
+
+      <button
+        class="three-d-open-button"
+        type="button"
+        data-action="open-3d-view"
+        data-id="${escapeHtml(point.id)}"
+        aria-haspopup="dialog"
+      >
+        <span class="three-d-open-button-badge" aria-hidden="true">3D</span>
+        <span>3D로 보기</span>
+      </button>
 
       ${infoBlock("위치", point.location)}
       ${infoBlock("취혈요령", point.technique)}

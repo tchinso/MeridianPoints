@@ -945,3 +945,306 @@ p {
   line-height: 1;
   cursor: pointer;
 }
+
+body.is-three-d-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.three-d-open-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 50px;
+  padding: 10px 14px;
+  color: #f7fffa;
+  background: linear-gradient(135deg, #14634e, #0e4036);
+  border: 1px solid #0d5744;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 16px rgba(15, 75, 58, 0.18);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.three-d-open-button:hover,
+.three-d-open-button:focus-visible {
+  background: linear-gradient(135deg, #187457, #0c4c3d);
+  outline: 3px solid rgba(21, 127, 95, 0.18);
+  outline-offset: 2px;
+}
+
+.three-d-open-button-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 29px;
+  height: 25px;
+  color: #e5f8ef;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 5px;
+  font-size: 0.77rem;
+  letter-spacing: 0.03em;
+}
+
+.model-viewer-sheet[hidden] {
+  display: none;
+}
+
+.model-viewer-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+}
+
+.model-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 20, 17, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.model-viewer-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100vh;
+  overflow: hidden;
+  color: #eef7f2;
+  background: #10231e;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+}
+
+.model-viewer-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 14px 12px;
+  background: #143129;
+  border-bottom: 1px solid rgba(217, 244, 231, 0.14);
+}
+
+.model-viewer-kicker {
+  margin-bottom: 3px;
+  color: #a9d6c3;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.model-viewer-header h2 {
+  font-size: 1.12rem;
+}
+
+.model-viewer-header .icon-button {
+  color: #eef7f2;
+}
+
+.model-viewer-header .icon-button:hover,
+.model-viewer-header .icon-button:focus-visible {
+  background: rgba(218, 247, 234, 0.13);
+}
+
+.three-d-stage {
+  position: relative;
+  min-height: 250px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(92, 157, 130, 0.24), transparent 38%),
+    linear-gradient(180deg, #18362e, #0b1915 88%);
+  touch-action: none;
+}
+
+.three-d-stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+  touch-action: none;
+}
+
+.three-d-stage-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px;
+  color: #d7e8df;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(77, 145, 118, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(24, 54, 46, 0.98), rgba(11, 25, 21, 0.98));
+}
+
+.three-d-stage-fallback[hidden] {
+  display: none;
+}
+
+.three-d-stage[data-state="ready"] .three-d-stage-fallback {
+  display: none;
+}
+
+.three-d-loader {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(216, 244, 229, 0.2);
+  border-top-color: #b8f1d5;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.three-d-stage[data-state="error"] .three-d-loader,
+.three-d-stage[data-state="unavailable"] .three-d-loader {
+  display: none;
+}
+
+.three-d-detail {
+  max-width: 32rem;
+  color: #aac5b8;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.three-d-retry,
+.model-viewer-reset {
+  min-height: 40px;
+  padding: 0 12px;
+  color: #e5f9ee;
+  background: #1b7057;
+  border: 1px solid rgba(198, 244, 220, 0.26);
+  border-radius: 7px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.three-d-retry:hover,
+.three-d-retry:focus-visible,
+.model-viewer-reset:hover,
+.model-viewer-reset:focus-visible {
+  background: #228463;
+  outline: 3px solid rgba(184, 241, 213, 0.24);
+  outline-offset: 2px;
+}
+
+.model-viewer-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #143129;
+  border-top: 1px solid rgba(217, 244, 231, 0.12);
+}
+
+.model-viewer-target {
+  color: #e7f5ee;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.model-viewer-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 10px 14px;
+  color: #d6e8df;
+  background: #102a22;
+  border-top: 1px solid rgba(217, 244, 231, 0.1);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.model-viewer-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.marker-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(240, 250, 245, 0.15);
+}
+
+.marker-key-target {
+  background: #f23838;
+}
+
+.marker-key-nearby {
+  background: #111714;
+  border: 1px solid rgba(238, 247, 242, 0.6);
+}
+
+.model-viewer-hint {
+  padding: 9px 14px;
+  color: #a9c6b8;
+  background: #102a22;
+  border-top: 1px solid rgba(217, 244, 231, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.model-viewer-safety-note {
+  padding: 7px 14px calc(10px + env(safe-area-inset-bottom));
+  color: #7fa595;
+  background: #0d211b;
+  border-top: 1px solid rgba(217, 244, 231, 0.08);
+  font-size: 0.69rem;
+  line-height: 1.38;
+  text-align: center;
+}
+
+@media (min-width: 720px) {
+  .model-viewer-sheet {
+    padding: 28px;
+  }
+
+  .model-viewer-panel {
+    width: min(100%, 920px);
+    height: min(860px, calc(100dvh - 56px));
+    border: 1px solid rgba(219, 246, 232, 0.18);
+    border-radius: 12px;
+  }
+
+  .model-viewer-header {
+    padding-top: 14px;
+  }
+
+  .model-viewer-hint {
+    padding-bottom: 12px;
+  }
+
+  .model-viewer-safety-note {
+    padding-bottom: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .model-viewer-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .model-viewer-reset {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .three-d-loader {
+    animation: none;
+  }
+}
