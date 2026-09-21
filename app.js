@@ -1663,7 +1663,7 @@ function renderStudy() {
 
       <div class="point-title">
         <p class="kicker">${escapeHtml(selectedMeridian.name)}</p>
-        <h2>${escapeHtml(point.name)}</h2>
+        <h2>${renderStudyPointName(point)}</h2>
         ${renderPointAliases(point)}
       </div>
 
@@ -1689,7 +1689,71 @@ function renderStudy() {
 }
 
 function shouldShowMeridianImportantTip() {
-  return studyIndex === 0 || studyIndex === selectedMeridian.points.length - 1;
+  if (!isRegularMeridianStudy()) return false;
+
+  const point = selectedMeridian.points[studyIndex];
+  return (
+    studyIndex === 0
+    || studyIndex === selectedMeridian.points.length - 1
+    || Boolean(getFivePhaseItem(selectedMeridian, point))
+  );
+}
+
+function isRegularMeridianStudy() {
+  return (
+    PRIMARY_MERIDIAN_CODES.includes(selectedMeridian?.code)
+    && studyReturnTarget?.type !== "special-study"
+  );
+}
+
+function renderStudyPointName(point) {
+  const pointName = escapeHtml(point.name);
+  const isRegularStudy = isRegularMeridianStudy();
+  const keyType = shouldShowPointRoleMarker(point)
+    ? getPointKeyType(selectedMeridian, point)
+    : "";
+  const roleMarker = keyType === "낙혈" ? "낙" : keyType === "극혈" ? "극" : "";
+  const fivePhase = isRegularStudy ? getFivePhaseItem(selectedMeridian, point) : null;
+  const phaseLabel = fivePhase?.category?.replace(/혈$/, "") || "";
+
+  const roleClass = roleMarker === "낙" ? "is-luo" : "is-xi";
+  const phaseClass = {
+    목: "is-wood",
+    화: "is-fire",
+    토: "is-earth",
+    금: "is-metal",
+    수: "is-water",
+  }[phaseLabel] || "";
+  const rolePrefix = roleMarker
+    ? `<span class="point-role-marker ${roleClass}">${roleMarker}</span> `
+    : "";
+  const phaseBadge = phaseLabel
+    ? `<span class="five-phase-badge ${phaseClass}">${escapeHtml(phaseLabel)}</span>`
+    : "";
+
+  return `${rolePrefix}${pointName}${phaseBadge}`;
+}
+
+function shouldShowPointRoleMarker(point) {
+  if (studyReturnTarget?.type === "special-study") return false;
+
+  return (
+    PRIMARY_MERIDIAN_CODES.includes(selectedMeridian?.code)
+    || point?.id === "CV15"
+    || point?.id === "GV1"
+  );
+}
+
+function getPointKeyType(meridian, point) {
+  const keyPoint = data.important?.keyPoints?.find((entry) => entry.code === meridian?.code);
+  return keyPoint?.items?.find(
+    (item) => item.pointId === point?.id && (item.type === "낙혈" || item.type === "극혈"),
+  )?.type;
+}
+
+function getFivePhaseItem(meridian, point) {
+  const five = data.important?.fiveShuAndFivePhase?.find((entry) => entry.code === meridian?.code);
+  return five?.fivePhase?.find((item) => item.pointId === point?.id);
 }
 
 function renderStudyBackButton() {
