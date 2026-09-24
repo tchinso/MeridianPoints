@@ -403,6 +403,12 @@ p {
   border-color: #d99578;
 }
 
+.point-role-marker.is-yuan {
+  color: #5c4b8a;
+  background: #f0ebfa;
+  border-color: #a797cf;
+}
+
 .five-phase-badge.is-wood {
   color: #246b47;
   background: #e4f3e9;

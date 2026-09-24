@@ -500,6 +500,7 @@ function applyPointAliases(meridians) {
   const points = meridians.flatMap((meridian) => meridian.points);
   const li19 = points.find((point) => point.id === "LI19");
   const te22 = points.find((point) => point.id === "TE22");
+  // HanbangText.txt's 구화료(LI19)·이화료(TE22) match LocationAndIndications.txt's 화료 entries.
   if (li19) li19.aliases = ["구화료"];
   if (te22) te22.aliases = ["이화료"];
 }

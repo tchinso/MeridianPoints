@@ -1709,10 +1709,12 @@ function isRegularMeridianStudy() {
 function renderStudyPointName(point) {
   const pointName = escapeHtml(point.name);
   const isRegularStudy = isRegularMeridianStudy();
-  const keyType = shouldShowPointRoleMarker(point)
+  const shouldShowRoleMarker = shouldShowPointRoleMarker(point);
+  const keyType = shouldShowRoleMarker
     ? getPointKeyType(selectedMeridian, point)
     : "";
   const roleMarker = keyType === "낙혈" ? "낙" : keyType === "극혈" ? "극" : "";
+  const isYuanPoint = shouldShowRoleMarker && point.note?.includes("원혈");
   const fivePhase = isRegularStudy ? getFivePhaseItem(selectedMeridian, point) : null;
   const phaseLabel = fivePhase?.category?.replace(/혈$/, "") || "";
 
@@ -1724,14 +1726,15 @@ function renderStudyPointName(point) {
     금: "is-metal",
     수: "is-water",
   }[phaseLabel] || "";
-  const rolePrefix = roleMarker
-    ? `<span class="point-role-marker ${roleClass}">${roleMarker}</span> `
-    : "";
+  const rolePrefix = [
+    roleMarker ? `<span class="point-role-marker ${roleClass}">${roleMarker}</span>` : "",
+    isYuanPoint ? '<span class="point-role-marker is-yuan">원</span>' : "",
+  ].filter(Boolean).join(" ");
   const phaseBadge = phaseLabel
     ? `<span class="five-phase-badge ${phaseClass}">${escapeHtml(phaseLabel)}</span>`
     : "";
 
-  return `${rolePrefix}${pointName}${phaseBadge}`;
+  return `${rolePrefix ? `${rolePrefix} ` : ""}${pointName}${phaseBadge}`;
 }
 
 function shouldShowPointRoleMarker(point) {
@@ -1746,9 +1749,12 @@ function shouldShowPointRoleMarker(point) {
 
 function getPointKeyType(meridian, point) {
   const keyPoint = data.important?.keyPoints?.find((entry) => entry.code === meridian?.code);
-  return keyPoint?.items?.find(
+  const keyType = keyPoint?.items?.find(
     (item) => item.pointId === point?.id && (item.type === "낙혈" || item.type === "극혈"),
   )?.type;
+
+  // 대포(SP21)는 일반 낙혈과 별도로 비경의 대락으로 소개되지만, 학습 표시는 낙혈과 같은 배지로 묶는다.
+  return keyType || (point?.note?.includes("대락") ? "낙혈" : "");
 }
 
 function getFivePhaseItem(meridian, point) {
