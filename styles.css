@@ -270,6 +270,11 @@ p {
   outline: 3px solid rgba(21, 127, 95, 0.14);
 }
 
+.special-unit-card,
+.extra-unit-card {
+  grid-column: 1 / -1;
+}
+
 .special-unit-card {
   border-color: rgba(193, 139, 46, 0.48);
   background: #fffaf0;
@@ -681,6 +686,10 @@ p {
 
 .choice-grid.names {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.choice-grid.names.special-choices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .choice-grid.images {

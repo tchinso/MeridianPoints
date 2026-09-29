@@ -3,7 +3,8 @@
   "sourceFiles": [
     "assets/references/MeridianPoints.txt",
     "assets/references/LocationAndIndications.txt",
-    "assets/references/ImportantMeridianPoints.txt"
+    "assets/references/ImportantMeridianPoints.txt",
+    "assets/references/HanbangText.txt"
   ],
   "clarityReview": {
     "reference": "assets/references/HanbangText.txt",
@@ -7829,6 +7830,12 @@
             "detail": "폐수(BL13)"
           },
           {
+            "prompt": "어느 경맥의 수혈이 폐수인가요?",
+            "answer": "수태음폐경",
+            "answerGroup": "key-meridian",
+            "detail": "폐수(BL13)"
+          },
+          {
             "prompt": "수태음폐경의 모혈은?",
             "answer": "중부",
             "answerGroup": "key-point-모혈",
@@ -7841,6 +7848,24 @@
             "detail": "중부(LU1)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 중부인가요?",
+            "answer": "수태음폐경",
+            "answerGroup": "key-meridian",
+            "detail": "중부(LU1)"
+          },
+          {
+            "prompt": "수태음폐경의 수혈 폐수과 짝인 모혈은?",
+            "answer": "중부",
+            "answerGroup": "key-point-모혈",
+            "detail": "수태음폐경 수혈·모혈"
+          },
+          {
+            "prompt": "수태음폐경의 모혈 중부과 짝인 수혈은?",
+            "answer": "폐수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수태음폐경 모혈·수혈"
+          },
+          {
             "prompt": "수양명대장경의 수혈은?",
             "answer": "대장수",
             "answerGroup": "key-point-수혈",
@@ -7850,6 +7875,12 @@
             "prompt": "대장수은 수양명대장경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "대장수(BL25)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 대장수인가요?",
+            "answer": "수양명대장경",
+            "answerGroup": "key-meridian",
             "detail": "대장수(BL25)"
           },
           {
@@ -7865,6 +7896,24 @@
             "detail": "천추(ST25)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 천추인가요?",
+            "answer": "수양명대장경",
+            "answerGroup": "key-meridian",
+            "detail": "천추(ST25)"
+          },
+          {
+            "prompt": "수양명대장경의 수혈 대장수과 짝인 모혈은?",
+            "answer": "천추",
+            "answerGroup": "key-point-모혈",
+            "detail": "수양명대장경 수혈·모혈"
+          },
+          {
+            "prompt": "수양명대장경의 모혈 천추과 짝인 수혈은?",
+            "answer": "대장수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수양명대장경 모혈·수혈"
+          },
+          {
             "prompt": "족양명위경의 수혈은?",
             "answer": "위수",
             "answerGroup": "key-point-수혈",
@@ -7874,6 +7923,12 @@
             "prompt": "위수은 족양명위경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "위수(BL21)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 위수인가요?",
+            "answer": "족양명위경",
+            "answerGroup": "key-meridian",
             "detail": "위수(BL21)"
           },
           {
@@ -7889,6 +7944,24 @@
             "detail": "중완(CV12)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 중완인가요?",
+            "answer": "족양명위경",
+            "answerGroup": "key-meridian",
+            "detail": "중완(CV12)"
+          },
+          {
+            "prompt": "족양명위경의 수혈 위수과 짝인 모혈은?",
+            "answer": "중완",
+            "answerGroup": "key-point-모혈",
+            "detail": "족양명위경 수혈·모혈"
+          },
+          {
+            "prompt": "족양명위경의 모혈 중완과 짝인 수혈은?",
+            "answer": "위수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족양명위경 모혈·수혈"
+          },
+          {
             "prompt": "족태음비경의 수혈은?",
             "answer": "비수",
             "answerGroup": "key-point-수혈",
@@ -7898,6 +7971,12 @@
             "prompt": "비수은 족태음비경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "비수(BL20)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 비수인가요?",
+            "answer": "족태음비경",
+            "answerGroup": "key-meridian",
             "detail": "비수(BL20)"
           },
           {
@@ -7913,6 +7992,24 @@
             "detail": "장문(LR13)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 장문인가요?",
+            "answer": "족태음비경",
+            "answerGroup": "key-meridian",
+            "detail": "장문(LR13)"
+          },
+          {
+            "prompt": "족태음비경의 수혈 비수과 짝인 모혈은?",
+            "answer": "장문",
+            "answerGroup": "key-point-모혈",
+            "detail": "족태음비경 수혈·모혈"
+          },
+          {
+            "prompt": "족태음비경의 모혈 장문과 짝인 수혈은?",
+            "answer": "비수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족태음비경 모혈·수혈"
+          },
+          {
             "prompt": "수소음심경의 수혈은?",
             "answer": "심수",
             "answerGroup": "key-point-수혈",
@@ -7922,6 +8019,12 @@
             "prompt": "심수은 수소음심경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "심수(BL15)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 심수인가요?",
+            "answer": "수소음심경",
+            "answerGroup": "key-meridian",
             "detail": "심수(BL15)"
           },
           {
@@ -7937,6 +8040,24 @@
             "detail": "거궐(CV14)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 거궐인가요?",
+            "answer": "수소음심경",
+            "answerGroup": "key-meridian",
+            "detail": "거궐(CV14)"
+          },
+          {
+            "prompt": "수소음심경의 수혈 심수과 짝인 모혈은?",
+            "answer": "거궐",
+            "answerGroup": "key-point-모혈",
+            "detail": "수소음심경 수혈·모혈"
+          },
+          {
+            "prompt": "수소음심경의 모혈 거궐과 짝인 수혈은?",
+            "answer": "심수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수소음심경 모혈·수혈"
+          },
+          {
             "prompt": "수태양소장경의 수혈은?",
             "answer": "소장수",
             "answerGroup": "key-point-수혈",
@@ -7946,6 +8067,12 @@
             "prompt": "소장수은 수태양소장경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "소장수(BL27)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 소장수인가요?",
+            "answer": "수태양소장경",
+            "answerGroup": "key-meridian",
             "detail": "소장수(BL27)"
           },
           {
@@ -7959,6 +8086,24 @@
             "answer": "모혈",
             "answerGroup": "key-type",
             "detail": "관원(CV4)"
+          },
+          {
+            "prompt": "어느 경맥의 모혈이 관원인가요?",
+            "answer": "수태양소장경",
+            "answerGroup": "key-meridian",
+            "detail": "관원(CV4)"
+          },
+          {
+            "prompt": "수태양소장경의 수혈 소장수과 짝인 모혈은?",
+            "answer": "관원",
+            "answerGroup": "key-point-모혈",
+            "detail": "수태양소장경 수혈·모혈"
+          },
+          {
+            "prompt": "수태양소장경의 모혈 관원과 짝인 수혈은?",
+            "answer": "소장수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수태양소장경 모혈·수혈"
           }
         ]
       },
@@ -8127,6 +8272,12 @@
             "detail": "방광수(BL28)"
           },
           {
+            "prompt": "어느 경맥의 수혈이 방광수인가요?",
+            "answer": "족태양방광경",
+            "answerGroup": "key-meridian",
+            "detail": "방광수(BL28)"
+          },
+          {
             "prompt": "족태양방광경의 모혈은?",
             "answer": "중극",
             "answerGroup": "key-point-모혈",
@@ -8139,6 +8290,24 @@
             "detail": "중극(CV3)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 중극인가요?",
+            "answer": "족태양방광경",
+            "answerGroup": "key-meridian",
+            "detail": "중극(CV3)"
+          },
+          {
+            "prompt": "족태양방광경의 수혈 방광수과 짝인 모혈은?",
+            "answer": "중극",
+            "answerGroup": "key-point-모혈",
+            "detail": "족태양방광경 수혈·모혈"
+          },
+          {
+            "prompt": "족태양방광경의 모혈 중극과 짝인 수혈은?",
+            "answer": "방광수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족태양방광경 모혈·수혈"
+          },
+          {
             "prompt": "족소음신경의 수혈은?",
             "answer": "신수",
             "answerGroup": "key-point-수혈",
@@ -8148,6 +8317,12 @@
             "prompt": "신수은 족소음신경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "신수(BL23)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 신수인가요?",
+            "answer": "족소음신경",
+            "answerGroup": "key-meridian",
             "detail": "신수(BL23)"
           },
           {
@@ -8163,6 +8338,24 @@
             "detail": "경문(GB25)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 경문인가요?",
+            "answer": "족소음신경",
+            "answerGroup": "key-meridian",
+            "detail": "경문(GB25)"
+          },
+          {
+            "prompt": "족소음신경의 수혈 신수과 짝인 모혈은?",
+            "answer": "경문",
+            "answerGroup": "key-point-모혈",
+            "detail": "족소음신경 수혈·모혈"
+          },
+          {
+            "prompt": "족소음신경의 모혈 경문과 짝인 수혈은?",
+            "answer": "신수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족소음신경 모혈·수혈"
+          },
+          {
             "prompt": "수궐음심포경의 수혈은?",
             "answer": "궐음수",
             "answerGroup": "key-point-수혈",
@@ -8172,6 +8365,12 @@
             "prompt": "궐음수은 수궐음심포경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "궐음수(BL14)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 궐음수인가요?",
+            "answer": "수궐음심포경",
+            "answerGroup": "key-meridian",
             "detail": "궐음수(BL14)"
           },
           {
@@ -8187,6 +8386,24 @@
             "detail": "단중(CV17)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 단중인가요?",
+            "answer": "수궐음심포경",
+            "answerGroup": "key-meridian",
+            "detail": "단중(CV17)"
+          },
+          {
+            "prompt": "수궐음심포경의 수혈 궐음수과 짝인 모혈은?",
+            "answer": "단중",
+            "answerGroup": "key-point-모혈",
+            "detail": "수궐음심포경 수혈·모혈"
+          },
+          {
+            "prompt": "수궐음심포경의 모혈 단중과 짝인 수혈은?",
+            "answer": "궐음수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수궐음심포경 모혈·수혈"
+          },
+          {
             "prompt": "수소양삼초경의 수혈은?",
             "answer": "삼초수",
             "answerGroup": "key-point-수혈",
@@ -8196,6 +8413,12 @@
             "prompt": "삼초수은 수소양삼초경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "삼초수(BL22)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 삼초수인가요?",
+            "answer": "수소양삼초경",
+            "answerGroup": "key-meridian",
             "detail": "삼초수(BL22)"
           },
           {
@@ -8211,6 +8434,24 @@
             "detail": "석문(CV5)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 석문인가요?",
+            "answer": "수소양삼초경",
+            "answerGroup": "key-meridian",
+            "detail": "석문(CV5)"
+          },
+          {
+            "prompt": "수소양삼초경의 수혈 삼초수과 짝인 모혈은?",
+            "answer": "석문",
+            "answerGroup": "key-point-모혈",
+            "detail": "수소양삼초경 수혈·모혈"
+          },
+          {
+            "prompt": "수소양삼초경의 모혈 석문과 짝인 수혈은?",
+            "answer": "삼초수",
+            "answerGroup": "key-point-수혈",
+            "detail": "수소양삼초경 모혈·수혈"
+          },
+          {
             "prompt": "족소양담경의 수혈은?",
             "answer": "담수",
             "answerGroup": "key-point-수혈",
@@ -8220,6 +8461,12 @@
             "prompt": "담수은 족소양담경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "담수(BL19)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 담수인가요?",
+            "answer": "족소양담경",
+            "answerGroup": "key-meridian",
             "detail": "담수(BL19)"
           },
           {
@@ -8235,6 +8482,24 @@
             "detail": "일월(GB24)"
           },
           {
+            "prompt": "어느 경맥의 모혈이 일월인가요?",
+            "answer": "족소양담경",
+            "answerGroup": "key-meridian",
+            "detail": "일월(GB24)"
+          },
+          {
+            "prompt": "족소양담경의 수혈 담수과 짝인 모혈은?",
+            "answer": "일월",
+            "answerGroup": "key-point-모혈",
+            "detail": "족소양담경 수혈·모혈"
+          },
+          {
+            "prompt": "족소양담경의 모혈 일월과 짝인 수혈은?",
+            "answer": "담수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족소양담경 모혈·수혈"
+          },
+          {
             "prompt": "족궐음간경의 수혈은?",
             "answer": "간수",
             "answerGroup": "key-point-수혈",
@@ -8244,6 +8509,12 @@
             "prompt": "간수은 족궐음간경에서 어떤 요혈?",
             "answer": "수혈",
             "answerGroup": "key-type",
+            "detail": "간수(BL18)"
+          },
+          {
+            "prompt": "어느 경맥의 수혈이 간수인가요?",
+            "answer": "족궐음간경",
+            "answerGroup": "key-meridian",
             "detail": "간수(BL18)"
           },
           {
@@ -8257,6 +8528,24 @@
             "answer": "모혈",
             "answerGroup": "key-type",
             "detail": "기문(LR14)"
+          },
+          {
+            "prompt": "어느 경맥의 모혈이 기문인가요?",
+            "answer": "족궐음간경",
+            "answerGroup": "key-meridian",
+            "detail": "기문(LR14)"
+          },
+          {
+            "prompt": "족궐음간경의 수혈 간수과 짝인 모혈은?",
+            "answer": "기문",
+            "answerGroup": "key-point-모혈",
+            "detail": "족궐음간경 수혈·모혈"
+          },
+          {
+            "prompt": "족궐음간경의 모혈 기문과 짝인 수혈은?",
+            "answer": "간수",
+            "answerGroup": "key-point-수혈",
+            "detail": "족궐음간경 모혈·수혈"
           },
           {
             "prompt": "임맥에서 방광경의 모혈은?",
@@ -8456,6 +8745,12 @@
             "detail": "열결(LU7)"
           },
           {
+            "prompt": "어느 경맥의 낙혈이 열결인가요?",
+            "answer": "수태음폐경",
+            "answerGroup": "key-meridian",
+            "detail": "열결(LU7)"
+          },
+          {
             "prompt": "수태음폐경의 극혈은?",
             "answer": "공최",
             "answerGroup": "key-point-극혈",
@@ -8468,6 +8763,24 @@
             "detail": "공최(LU6)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 공최인가요?",
+            "answer": "수태음폐경",
+            "answerGroup": "key-meridian",
+            "detail": "공최(LU6)"
+          },
+          {
+            "prompt": "수태음폐경의 낙혈 열결과 짝인 극혈은?",
+            "answer": "공최",
+            "answerGroup": "key-point-극혈",
+            "detail": "수태음폐경 낙혈·극혈"
+          },
+          {
+            "prompt": "수태음폐경의 극혈 공최과 짝인 낙혈은?",
+            "answer": "열결",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수태음폐경 극혈·낙혈"
+          },
+          {
             "prompt": "수양명대장경의 낙혈은?",
             "answer": "편력",
             "answerGroup": "key-point-낙혈",
@@ -8477,6 +8790,12 @@
             "prompt": "편력은 수양명대장경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "편력(LI6)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 편력인가요?",
+            "answer": "수양명대장경",
+            "answerGroup": "key-meridian",
             "detail": "편력(LI6)"
           },
           {
@@ -8492,6 +8811,24 @@
             "detail": "온류(LI7)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 온류인가요?",
+            "answer": "수양명대장경",
+            "answerGroup": "key-meridian",
+            "detail": "온류(LI7)"
+          },
+          {
+            "prompt": "수양명대장경의 낙혈 편력과 짝인 극혈은?",
+            "answer": "온류",
+            "answerGroup": "key-point-극혈",
+            "detail": "수양명대장경 낙혈·극혈"
+          },
+          {
+            "prompt": "수양명대장경의 극혈 온류과 짝인 낙혈은?",
+            "answer": "편력",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수양명대장경 극혈·낙혈"
+          },
+          {
             "prompt": "족양명위경의 낙혈은?",
             "answer": "풍륭",
             "answerGroup": "key-point-낙혈",
@@ -8501,6 +8838,12 @@
             "prompt": "풍륭은 족양명위경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "풍륭(ST40)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 풍륭인가요?",
+            "answer": "족양명위경",
+            "answerGroup": "key-meridian",
             "detail": "풍륭(ST40)"
           },
           {
@@ -8516,6 +8859,24 @@
             "detail": "양구(ST34)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 양구인가요?",
+            "answer": "족양명위경",
+            "answerGroup": "key-meridian",
+            "detail": "양구(ST34)"
+          },
+          {
+            "prompt": "족양명위경의 낙혈 풍륭과 짝인 극혈은?",
+            "answer": "양구",
+            "answerGroup": "key-point-극혈",
+            "detail": "족양명위경 낙혈·극혈"
+          },
+          {
+            "prompt": "족양명위경의 극혈 양구과 짝인 낙혈은?",
+            "answer": "풍륭",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족양명위경 극혈·낙혈"
+          },
+          {
             "prompt": "족태음비경의 낙혈은?",
             "answer": "공손",
             "answerGroup": "key-point-낙혈",
@@ -8525,6 +8886,12 @@
             "prompt": "공손은 족태음비경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "공손(SP4)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 공손인가요?",
+            "answer": "족태음비경",
+            "answerGroup": "key-meridian",
             "detail": "공손(SP4)"
           },
           {
@@ -8540,6 +8907,24 @@
             "detail": "지기(SP8)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 지기인가요?",
+            "answer": "족태음비경",
+            "answerGroup": "key-meridian",
+            "detail": "지기(SP8)"
+          },
+          {
+            "prompt": "족태음비경의 낙혈 공손과 짝인 극혈은?",
+            "answer": "지기",
+            "answerGroup": "key-point-극혈",
+            "detail": "족태음비경 낙혈·극혈"
+          },
+          {
+            "prompt": "족태음비경의 극혈 지기과 짝인 낙혈은?",
+            "answer": "공손",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족태음비경 극혈·낙혈"
+          },
+          {
             "prompt": "수소음심경의 낙혈은?",
             "answer": "통리",
             "answerGroup": "key-point-낙혈",
@@ -8549,6 +8934,12 @@
             "prompt": "통리은 수소음심경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "통리(HT5)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 통리인가요?",
+            "answer": "수소음심경",
+            "answerGroup": "key-meridian",
             "detail": "통리(HT5)"
           },
           {
@@ -8564,6 +8955,24 @@
             "detail": "음극(HT6)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 음극인가요?",
+            "answer": "수소음심경",
+            "answerGroup": "key-meridian",
+            "detail": "음극(HT6)"
+          },
+          {
+            "prompt": "수소음심경의 낙혈 통리과 짝인 극혈은?",
+            "answer": "음극",
+            "answerGroup": "key-point-극혈",
+            "detail": "수소음심경 낙혈·극혈"
+          },
+          {
+            "prompt": "수소음심경의 극혈 음극과 짝인 낙혈은?",
+            "answer": "통리",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수소음심경 극혈·낙혈"
+          },
+          {
             "prompt": "수태양소장경의 낙혈은?",
             "answer": "지정",
             "answerGroup": "key-point-낙혈",
@@ -8573,6 +8982,12 @@
             "prompt": "지정은 수태양소장경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "지정(SI7)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 지정인가요?",
+            "answer": "수태양소장경",
+            "answerGroup": "key-meridian",
             "detail": "지정(SI7)"
           },
           {
@@ -8586,6 +9001,24 @@
             "answer": "극혈",
             "answerGroup": "key-type",
             "detail": "양로(SI6)"
+          },
+          {
+            "prompt": "어느 경맥의 극혈이 양로인가요?",
+            "answer": "수태양소장경",
+            "answerGroup": "key-meridian",
+            "detail": "양로(SI6)"
+          },
+          {
+            "prompt": "수태양소장경의 낙혈 지정과 짝인 극혈은?",
+            "answer": "양로",
+            "answerGroup": "key-point-극혈",
+            "detail": "수태양소장경 낙혈·극혈"
+          },
+          {
+            "prompt": "수태양소장경의 극혈 양로과 짝인 낙혈은?",
+            "answer": "지정",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수태양소장경 극혈·낙혈"
           }
         ]
       },
@@ -8735,6 +9168,12 @@
             "detail": "비양(BL58)"
           },
           {
+            "prompt": "어느 경맥의 낙혈이 비양인가요?",
+            "answer": "족태양방광경",
+            "answerGroup": "key-meridian",
+            "detail": "비양(BL58)"
+          },
+          {
             "prompt": "족태양방광경의 극혈은?",
             "answer": "금문",
             "answerGroup": "key-point-극혈",
@@ -8747,6 +9186,24 @@
             "detail": "금문(BL63)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 금문인가요?",
+            "answer": "족태양방광경",
+            "answerGroup": "key-meridian",
+            "detail": "금문(BL63)"
+          },
+          {
+            "prompt": "족태양방광경의 낙혈 비양과 짝인 극혈은?",
+            "answer": "금문",
+            "answerGroup": "key-point-극혈",
+            "detail": "족태양방광경 낙혈·극혈"
+          },
+          {
+            "prompt": "족태양방광경의 극혈 금문과 짝인 낙혈은?",
+            "answer": "비양",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족태양방광경 극혈·낙혈"
+          },
+          {
             "prompt": "족소음신경의 낙혈은?",
             "answer": "대종",
             "answerGroup": "key-point-낙혈",
@@ -8756,6 +9213,12 @@
             "prompt": "대종은 족소음신경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "대종(KI4)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 대종인가요?",
+            "answer": "족소음신경",
+            "answerGroup": "key-meridian",
             "detail": "대종(KI4)"
           },
           {
@@ -8771,6 +9234,24 @@
             "detail": "수천(KI5)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 수천인가요?",
+            "answer": "족소음신경",
+            "answerGroup": "key-meridian",
+            "detail": "수천(KI5)"
+          },
+          {
+            "prompt": "족소음신경의 낙혈 대종과 짝인 극혈은?",
+            "answer": "수천",
+            "answerGroup": "key-point-극혈",
+            "detail": "족소음신경 낙혈·극혈"
+          },
+          {
+            "prompt": "족소음신경의 극혈 수천과 짝인 낙혈은?",
+            "answer": "대종",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족소음신경 극혈·낙혈"
+          },
+          {
             "prompt": "수궐음심포경의 낙혈은?",
             "answer": "내관",
             "answerGroup": "key-point-낙혈",
@@ -8780,6 +9261,12 @@
             "prompt": "내관은 수궐음심포경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "내관(PC6)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 내관인가요?",
+            "answer": "수궐음심포경",
+            "answerGroup": "key-meridian",
             "detail": "내관(PC6)"
           },
           {
@@ -8795,6 +9282,24 @@
             "detail": "극문(PC4)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 극문인가요?",
+            "answer": "수궐음심포경",
+            "answerGroup": "key-meridian",
+            "detail": "극문(PC4)"
+          },
+          {
+            "prompt": "수궐음심포경의 낙혈 내관과 짝인 극혈은?",
+            "answer": "극문",
+            "answerGroup": "key-point-극혈",
+            "detail": "수궐음심포경 낙혈·극혈"
+          },
+          {
+            "prompt": "수궐음심포경의 극혈 극문과 짝인 낙혈은?",
+            "answer": "내관",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수궐음심포경 극혈·낙혈"
+          },
+          {
             "prompt": "수소양삼초경의 낙혈은?",
             "answer": "외관",
             "answerGroup": "key-point-낙혈",
@@ -8804,6 +9309,12 @@
             "prompt": "외관은 수소양삼초경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "외관(TE5)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 외관인가요?",
+            "answer": "수소양삼초경",
+            "answerGroup": "key-meridian",
             "detail": "외관(TE5)"
           },
           {
@@ -8819,6 +9330,24 @@
             "detail": "회종(TE7)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 회종인가요?",
+            "answer": "수소양삼초경",
+            "answerGroup": "key-meridian",
+            "detail": "회종(TE7)"
+          },
+          {
+            "prompt": "수소양삼초경의 낙혈 외관과 짝인 극혈은?",
+            "answer": "회종",
+            "answerGroup": "key-point-극혈",
+            "detail": "수소양삼초경 낙혈·극혈"
+          },
+          {
+            "prompt": "수소양삼초경의 극혈 회종과 짝인 낙혈은?",
+            "answer": "외관",
+            "answerGroup": "key-point-낙혈",
+            "detail": "수소양삼초경 극혈·낙혈"
+          },
+          {
             "prompt": "족소양담경의 낙혈은?",
             "answer": "광명",
             "answerGroup": "key-point-낙혈",
@@ -8828,6 +9357,12 @@
             "prompt": "광명은 족소양담경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "광명(GB37)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 광명인가요?",
+            "answer": "족소양담경",
+            "answerGroup": "key-meridian",
             "detail": "광명(GB37)"
           },
           {
@@ -8843,6 +9378,24 @@
             "detail": "외구(GB36)"
           },
           {
+            "prompt": "어느 경맥의 극혈이 외구인가요?",
+            "answer": "족소양담경",
+            "answerGroup": "key-meridian",
+            "detail": "외구(GB36)"
+          },
+          {
+            "prompt": "족소양담경의 낙혈 광명과 짝인 극혈은?",
+            "answer": "외구",
+            "answerGroup": "key-point-극혈",
+            "detail": "족소양담경 낙혈·극혈"
+          },
+          {
+            "prompt": "족소양담경의 극혈 외구과 짝인 낙혈은?",
+            "answer": "광명",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족소양담경 극혈·낙혈"
+          },
+          {
             "prompt": "족궐음간경의 낙혈은?",
             "answer": "여구",
             "answerGroup": "key-point-낙혈",
@@ -8852,6 +9405,12 @@
             "prompt": "여구은 족궐음간경에서 어떤 요혈?",
             "answer": "낙혈",
             "answerGroup": "key-type",
+            "detail": "여구(LR5)"
+          },
+          {
+            "prompt": "어느 경맥의 낙혈이 여구인가요?",
+            "answer": "족궐음간경",
+            "answerGroup": "key-meridian",
             "detail": "여구(LR5)"
           },
           {
@@ -8865,6 +9424,24 @@
             "answer": "극혈",
             "answerGroup": "key-type",
             "detail": "중도(LR6)"
+          },
+          {
+            "prompt": "어느 경맥의 극혈이 중도인가요?",
+            "answer": "족궐음간경",
+            "answerGroup": "key-meridian",
+            "detail": "중도(LR6)"
+          },
+          {
+            "prompt": "족궐음간경의 낙혈 여구과 짝인 극혈은?",
+            "answer": "중도",
+            "answerGroup": "key-point-극혈",
+            "detail": "족궐음간경 낙혈·극혈"
+          },
+          {
+            "prompt": "족궐음간경의 극혈 중도과 짝인 낙혈은?",
+            "answer": "여구",
+            "answerGroup": "key-point-낙혈",
+            "detail": "족궐음간경 극혈·낙혈"
           },
           {
             "prompt": "임맥의 낙혈은?",
@@ -11231,6 +11808,12 @@
         "detail": "폐수(BL13)"
       },
       {
+        "prompt": "어느 경맥의 수혈이 폐수인가요?",
+        "answer": "수태음폐경",
+        "answerGroup": "key-meridian",
+        "detail": "폐수(BL13)"
+      },
+      {
         "prompt": "수태음폐경의 모혈은?",
         "answer": "중부",
         "answerGroup": "key-point-모혈",
@@ -11243,6 +11826,24 @@
         "detail": "중부(LU1)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 중부인가요?",
+        "answer": "수태음폐경",
+        "answerGroup": "key-meridian",
+        "detail": "중부(LU1)"
+      },
+      {
+        "prompt": "수태음폐경의 수혈 폐수과 짝인 모혈은?",
+        "answer": "중부",
+        "answerGroup": "key-point-모혈",
+        "detail": "수태음폐경 수혈·모혈"
+      },
+      {
+        "prompt": "수태음폐경의 모혈 중부과 짝인 수혈은?",
+        "answer": "폐수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수태음폐경 모혈·수혈"
+      },
+      {
         "prompt": "수양명대장경의 수혈은?",
         "answer": "대장수",
         "answerGroup": "key-point-수혈",
@@ -11252,6 +11853,12 @@
         "prompt": "대장수은 수양명대장경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "대장수(BL25)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 대장수인가요?",
+        "answer": "수양명대장경",
+        "answerGroup": "key-meridian",
         "detail": "대장수(BL25)"
       },
       {
@@ -11267,6 +11874,24 @@
         "detail": "천추(ST25)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 천추인가요?",
+        "answer": "수양명대장경",
+        "answerGroup": "key-meridian",
+        "detail": "천추(ST25)"
+      },
+      {
+        "prompt": "수양명대장경의 수혈 대장수과 짝인 모혈은?",
+        "answer": "천추",
+        "answerGroup": "key-point-모혈",
+        "detail": "수양명대장경 수혈·모혈"
+      },
+      {
+        "prompt": "수양명대장경의 모혈 천추과 짝인 수혈은?",
+        "answer": "대장수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수양명대장경 모혈·수혈"
+      },
+      {
         "prompt": "족양명위경의 수혈은?",
         "answer": "위수",
         "answerGroup": "key-point-수혈",
@@ -11276,6 +11901,12 @@
         "prompt": "위수은 족양명위경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "위수(BL21)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 위수인가요?",
+        "answer": "족양명위경",
+        "answerGroup": "key-meridian",
         "detail": "위수(BL21)"
       },
       {
@@ -11291,6 +11922,24 @@
         "detail": "중완(CV12)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 중완인가요?",
+        "answer": "족양명위경",
+        "answerGroup": "key-meridian",
+        "detail": "중완(CV12)"
+      },
+      {
+        "prompt": "족양명위경의 수혈 위수과 짝인 모혈은?",
+        "answer": "중완",
+        "answerGroup": "key-point-모혈",
+        "detail": "족양명위경 수혈·모혈"
+      },
+      {
+        "prompt": "족양명위경의 모혈 중완과 짝인 수혈은?",
+        "answer": "위수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족양명위경 모혈·수혈"
+      },
+      {
         "prompt": "족태음비경의 수혈은?",
         "answer": "비수",
         "answerGroup": "key-point-수혈",
@@ -11300,6 +11949,12 @@
         "prompt": "비수은 족태음비경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "비수(BL20)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 비수인가요?",
+        "answer": "족태음비경",
+        "answerGroup": "key-meridian",
         "detail": "비수(BL20)"
       },
       {
@@ -11315,6 +11970,24 @@
         "detail": "장문(LR13)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 장문인가요?",
+        "answer": "족태음비경",
+        "answerGroup": "key-meridian",
+        "detail": "장문(LR13)"
+      },
+      {
+        "prompt": "족태음비경의 수혈 비수과 짝인 모혈은?",
+        "answer": "장문",
+        "answerGroup": "key-point-모혈",
+        "detail": "족태음비경 수혈·모혈"
+      },
+      {
+        "prompt": "족태음비경의 모혈 장문과 짝인 수혈은?",
+        "answer": "비수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족태음비경 모혈·수혈"
+      },
+      {
         "prompt": "수소음심경의 수혈은?",
         "answer": "심수",
         "answerGroup": "key-point-수혈",
@@ -11324,6 +11997,12 @@
         "prompt": "심수은 수소음심경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "심수(BL15)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 심수인가요?",
+        "answer": "수소음심경",
+        "answerGroup": "key-meridian",
         "detail": "심수(BL15)"
       },
       {
@@ -11339,6 +12018,24 @@
         "detail": "거궐(CV14)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 거궐인가요?",
+        "answer": "수소음심경",
+        "answerGroup": "key-meridian",
+        "detail": "거궐(CV14)"
+      },
+      {
+        "prompt": "수소음심경의 수혈 심수과 짝인 모혈은?",
+        "answer": "거궐",
+        "answerGroup": "key-point-모혈",
+        "detail": "수소음심경 수혈·모혈"
+      },
+      {
+        "prompt": "수소음심경의 모혈 거궐과 짝인 수혈은?",
+        "answer": "심수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수소음심경 모혈·수혈"
+      },
+      {
         "prompt": "수태양소장경의 수혈은?",
         "answer": "소장수",
         "answerGroup": "key-point-수혈",
@@ -11348,6 +12045,12 @@
         "prompt": "소장수은 수태양소장경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "소장수(BL27)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 소장수인가요?",
+        "answer": "수태양소장경",
+        "answerGroup": "key-meridian",
         "detail": "소장수(BL27)"
       },
       {
@@ -11363,6 +12066,24 @@
         "detail": "관원(CV4)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 관원인가요?",
+        "answer": "수태양소장경",
+        "answerGroup": "key-meridian",
+        "detail": "관원(CV4)"
+      },
+      {
+        "prompt": "수태양소장경의 수혈 소장수과 짝인 모혈은?",
+        "answer": "관원",
+        "answerGroup": "key-point-모혈",
+        "detail": "수태양소장경 수혈·모혈"
+      },
+      {
+        "prompt": "수태양소장경의 모혈 관원과 짝인 수혈은?",
+        "answer": "소장수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수태양소장경 모혈·수혈"
+      },
+      {
         "prompt": "족태양방광경의 수혈은?",
         "answer": "방광수",
         "answerGroup": "key-point-수혈",
@@ -11372,6 +12093,12 @@
         "prompt": "방광수은 족태양방광경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "방광수(BL28)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 방광수인가요?",
+        "answer": "족태양방광경",
+        "answerGroup": "key-meridian",
         "detail": "방광수(BL28)"
       },
       {
@@ -11387,6 +12114,24 @@
         "detail": "중극(CV3)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 중극인가요?",
+        "answer": "족태양방광경",
+        "answerGroup": "key-meridian",
+        "detail": "중극(CV3)"
+      },
+      {
+        "prompt": "족태양방광경의 수혈 방광수과 짝인 모혈은?",
+        "answer": "중극",
+        "answerGroup": "key-point-모혈",
+        "detail": "족태양방광경 수혈·모혈"
+      },
+      {
+        "prompt": "족태양방광경의 모혈 중극과 짝인 수혈은?",
+        "answer": "방광수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족태양방광경 모혈·수혈"
+      },
+      {
         "prompt": "족소음신경의 수혈은?",
         "answer": "신수",
         "answerGroup": "key-point-수혈",
@@ -11396,6 +12141,12 @@
         "prompt": "신수은 족소음신경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "신수(BL23)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 신수인가요?",
+        "answer": "족소음신경",
+        "answerGroup": "key-meridian",
         "detail": "신수(BL23)"
       },
       {
@@ -11411,6 +12162,24 @@
         "detail": "경문(GB25)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 경문인가요?",
+        "answer": "족소음신경",
+        "answerGroup": "key-meridian",
+        "detail": "경문(GB25)"
+      },
+      {
+        "prompt": "족소음신경의 수혈 신수과 짝인 모혈은?",
+        "answer": "경문",
+        "answerGroup": "key-point-모혈",
+        "detail": "족소음신경 수혈·모혈"
+      },
+      {
+        "prompt": "족소음신경의 모혈 경문과 짝인 수혈은?",
+        "answer": "신수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족소음신경 모혈·수혈"
+      },
+      {
         "prompt": "수궐음심포경의 수혈은?",
         "answer": "궐음수",
         "answerGroup": "key-point-수혈",
@@ -11420,6 +12189,12 @@
         "prompt": "궐음수은 수궐음심포경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "궐음수(BL14)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 궐음수인가요?",
+        "answer": "수궐음심포경",
+        "answerGroup": "key-meridian",
         "detail": "궐음수(BL14)"
       },
       {
@@ -11435,6 +12210,24 @@
         "detail": "단중(CV17)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 단중인가요?",
+        "answer": "수궐음심포경",
+        "answerGroup": "key-meridian",
+        "detail": "단중(CV17)"
+      },
+      {
+        "prompt": "수궐음심포경의 수혈 궐음수과 짝인 모혈은?",
+        "answer": "단중",
+        "answerGroup": "key-point-모혈",
+        "detail": "수궐음심포경 수혈·모혈"
+      },
+      {
+        "prompt": "수궐음심포경의 모혈 단중과 짝인 수혈은?",
+        "answer": "궐음수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수궐음심포경 모혈·수혈"
+      },
+      {
         "prompt": "수소양삼초경의 수혈은?",
         "answer": "삼초수",
         "answerGroup": "key-point-수혈",
@@ -11444,6 +12237,12 @@
         "prompt": "삼초수은 수소양삼초경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "삼초수(BL22)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 삼초수인가요?",
+        "answer": "수소양삼초경",
+        "answerGroup": "key-meridian",
         "detail": "삼초수(BL22)"
       },
       {
@@ -11459,6 +12258,24 @@
         "detail": "석문(CV5)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 석문인가요?",
+        "answer": "수소양삼초경",
+        "answerGroup": "key-meridian",
+        "detail": "석문(CV5)"
+      },
+      {
+        "prompt": "수소양삼초경의 수혈 삼초수과 짝인 모혈은?",
+        "answer": "석문",
+        "answerGroup": "key-point-모혈",
+        "detail": "수소양삼초경 수혈·모혈"
+      },
+      {
+        "prompt": "수소양삼초경의 모혈 석문과 짝인 수혈은?",
+        "answer": "삼초수",
+        "answerGroup": "key-point-수혈",
+        "detail": "수소양삼초경 모혈·수혈"
+      },
+      {
         "prompt": "족소양담경의 수혈은?",
         "answer": "담수",
         "answerGroup": "key-point-수혈",
@@ -11468,6 +12285,12 @@
         "prompt": "담수은 족소양담경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "담수(BL19)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 담수인가요?",
+        "answer": "족소양담경",
+        "answerGroup": "key-meridian",
         "detail": "담수(BL19)"
       },
       {
@@ -11483,6 +12306,24 @@
         "detail": "일월(GB24)"
       },
       {
+        "prompt": "어느 경맥의 모혈이 일월인가요?",
+        "answer": "족소양담경",
+        "answerGroup": "key-meridian",
+        "detail": "일월(GB24)"
+      },
+      {
+        "prompt": "족소양담경의 수혈 담수과 짝인 모혈은?",
+        "answer": "일월",
+        "answerGroup": "key-point-모혈",
+        "detail": "족소양담경 수혈·모혈"
+      },
+      {
+        "prompt": "족소양담경의 모혈 일월과 짝인 수혈은?",
+        "answer": "담수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족소양담경 모혈·수혈"
+      },
+      {
         "prompt": "족궐음간경의 수혈은?",
         "answer": "간수",
         "answerGroup": "key-point-수혈",
@@ -11492,6 +12333,12 @@
         "prompt": "간수은 족궐음간경에서 어떤 요혈?",
         "answer": "수혈",
         "answerGroup": "key-type",
+        "detail": "간수(BL18)"
+      },
+      {
+        "prompt": "어느 경맥의 수혈이 간수인가요?",
+        "answer": "족궐음간경",
+        "answerGroup": "key-meridian",
         "detail": "간수(BL18)"
       },
       {
@@ -11505,6 +12352,24 @@
         "answer": "모혈",
         "answerGroup": "key-type",
         "detail": "기문(LR14)"
+      },
+      {
+        "prompt": "어느 경맥의 모혈이 기문인가요?",
+        "answer": "족궐음간경",
+        "answerGroup": "key-meridian",
+        "detail": "기문(LR14)"
+      },
+      {
+        "prompt": "족궐음간경의 수혈 간수과 짝인 모혈은?",
+        "answer": "기문",
+        "answerGroup": "key-point-모혈",
+        "detail": "족궐음간경 수혈·모혈"
+      },
+      {
+        "prompt": "족궐음간경의 모혈 기문과 짝인 수혈은?",
+        "answer": "간수",
+        "answerGroup": "key-point-수혈",
+        "detail": "족궐음간경 모혈·수혈"
       },
       {
         "prompt": "임맥에서 방광경의 모혈은?",
@@ -11591,6 +12456,12 @@
         "detail": "열결(LU7)"
       },
       {
+        "prompt": "어느 경맥의 낙혈이 열결인가요?",
+        "answer": "수태음폐경",
+        "answerGroup": "key-meridian",
+        "detail": "열결(LU7)"
+      },
+      {
         "prompt": "수태음폐경의 극혈은?",
         "answer": "공최",
         "answerGroup": "key-point-극혈",
@@ -11603,6 +12474,24 @@
         "detail": "공최(LU6)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 공최인가요?",
+        "answer": "수태음폐경",
+        "answerGroup": "key-meridian",
+        "detail": "공최(LU6)"
+      },
+      {
+        "prompt": "수태음폐경의 낙혈 열결과 짝인 극혈은?",
+        "answer": "공최",
+        "answerGroup": "key-point-극혈",
+        "detail": "수태음폐경 낙혈·극혈"
+      },
+      {
+        "prompt": "수태음폐경의 극혈 공최과 짝인 낙혈은?",
+        "answer": "열결",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수태음폐경 극혈·낙혈"
+      },
+      {
         "prompt": "수양명대장경의 낙혈은?",
         "answer": "편력",
         "answerGroup": "key-point-낙혈",
@@ -11612,6 +12501,12 @@
         "prompt": "편력은 수양명대장경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "편력(LI6)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 편력인가요?",
+        "answer": "수양명대장경",
+        "answerGroup": "key-meridian",
         "detail": "편력(LI6)"
       },
       {
@@ -11627,6 +12522,24 @@
         "detail": "온류(LI7)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 온류인가요?",
+        "answer": "수양명대장경",
+        "answerGroup": "key-meridian",
+        "detail": "온류(LI7)"
+      },
+      {
+        "prompt": "수양명대장경의 낙혈 편력과 짝인 극혈은?",
+        "answer": "온류",
+        "answerGroup": "key-point-극혈",
+        "detail": "수양명대장경 낙혈·극혈"
+      },
+      {
+        "prompt": "수양명대장경의 극혈 온류과 짝인 낙혈은?",
+        "answer": "편력",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수양명대장경 극혈·낙혈"
+      },
+      {
         "prompt": "족양명위경의 낙혈은?",
         "answer": "풍륭",
         "answerGroup": "key-point-낙혈",
@@ -11636,6 +12549,12 @@
         "prompt": "풍륭은 족양명위경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "풍륭(ST40)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 풍륭인가요?",
+        "answer": "족양명위경",
+        "answerGroup": "key-meridian",
         "detail": "풍륭(ST40)"
       },
       {
@@ -11651,6 +12570,24 @@
         "detail": "양구(ST34)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 양구인가요?",
+        "answer": "족양명위경",
+        "answerGroup": "key-meridian",
+        "detail": "양구(ST34)"
+      },
+      {
+        "prompt": "족양명위경의 낙혈 풍륭과 짝인 극혈은?",
+        "answer": "양구",
+        "answerGroup": "key-point-극혈",
+        "detail": "족양명위경 낙혈·극혈"
+      },
+      {
+        "prompt": "족양명위경의 극혈 양구과 짝인 낙혈은?",
+        "answer": "풍륭",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족양명위경 극혈·낙혈"
+      },
+      {
         "prompt": "족태음비경의 낙혈은?",
         "answer": "공손",
         "answerGroup": "key-point-낙혈",
@@ -11660,6 +12597,12 @@
         "prompt": "공손은 족태음비경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "공손(SP4)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 공손인가요?",
+        "answer": "족태음비경",
+        "answerGroup": "key-meridian",
         "detail": "공손(SP4)"
       },
       {
@@ -11675,6 +12618,24 @@
         "detail": "지기(SP8)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 지기인가요?",
+        "answer": "족태음비경",
+        "answerGroup": "key-meridian",
+        "detail": "지기(SP8)"
+      },
+      {
+        "prompt": "족태음비경의 낙혈 공손과 짝인 극혈은?",
+        "answer": "지기",
+        "answerGroup": "key-point-극혈",
+        "detail": "족태음비경 낙혈·극혈"
+      },
+      {
+        "prompt": "족태음비경의 극혈 지기과 짝인 낙혈은?",
+        "answer": "공손",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족태음비경 극혈·낙혈"
+      },
+      {
         "prompt": "수소음심경의 낙혈은?",
         "answer": "통리",
         "answerGroup": "key-point-낙혈",
@@ -11684,6 +12645,12 @@
         "prompt": "통리은 수소음심경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "통리(HT5)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 통리인가요?",
+        "answer": "수소음심경",
+        "answerGroup": "key-meridian",
         "detail": "통리(HT5)"
       },
       {
@@ -11699,6 +12666,24 @@
         "detail": "음극(HT6)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 음극인가요?",
+        "answer": "수소음심경",
+        "answerGroup": "key-meridian",
+        "detail": "음극(HT6)"
+      },
+      {
+        "prompt": "수소음심경의 낙혈 통리과 짝인 극혈은?",
+        "answer": "음극",
+        "answerGroup": "key-point-극혈",
+        "detail": "수소음심경 낙혈·극혈"
+      },
+      {
+        "prompt": "수소음심경의 극혈 음극과 짝인 낙혈은?",
+        "answer": "통리",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수소음심경 극혈·낙혈"
+      },
+      {
         "prompt": "수태양소장경의 낙혈은?",
         "answer": "지정",
         "answerGroup": "key-point-낙혈",
@@ -11708,6 +12693,12 @@
         "prompt": "지정은 수태양소장경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "지정(SI7)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 지정인가요?",
+        "answer": "수태양소장경",
+        "answerGroup": "key-meridian",
         "detail": "지정(SI7)"
       },
       {
@@ -11723,6 +12714,24 @@
         "detail": "양로(SI6)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 양로인가요?",
+        "answer": "수태양소장경",
+        "answerGroup": "key-meridian",
+        "detail": "양로(SI6)"
+      },
+      {
+        "prompt": "수태양소장경의 낙혈 지정과 짝인 극혈은?",
+        "answer": "양로",
+        "answerGroup": "key-point-극혈",
+        "detail": "수태양소장경 낙혈·극혈"
+      },
+      {
+        "prompt": "수태양소장경의 극혈 양로과 짝인 낙혈은?",
+        "answer": "지정",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수태양소장경 극혈·낙혈"
+      },
+      {
         "prompt": "족태양방광경의 낙혈은?",
         "answer": "비양",
         "answerGroup": "key-point-낙혈",
@@ -11732,6 +12741,12 @@
         "prompt": "비양은 족태양방광경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "비양(BL58)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 비양인가요?",
+        "answer": "족태양방광경",
+        "answerGroup": "key-meridian",
         "detail": "비양(BL58)"
       },
       {
@@ -11747,6 +12762,24 @@
         "detail": "금문(BL63)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 금문인가요?",
+        "answer": "족태양방광경",
+        "answerGroup": "key-meridian",
+        "detail": "금문(BL63)"
+      },
+      {
+        "prompt": "족태양방광경의 낙혈 비양과 짝인 극혈은?",
+        "answer": "금문",
+        "answerGroup": "key-point-극혈",
+        "detail": "족태양방광경 낙혈·극혈"
+      },
+      {
+        "prompt": "족태양방광경의 극혈 금문과 짝인 낙혈은?",
+        "answer": "비양",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족태양방광경 극혈·낙혈"
+      },
+      {
         "prompt": "족소음신경의 낙혈은?",
         "answer": "대종",
         "answerGroup": "key-point-낙혈",
@@ -11756,6 +12789,12 @@
         "prompt": "대종은 족소음신경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "대종(KI4)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 대종인가요?",
+        "answer": "족소음신경",
+        "answerGroup": "key-meridian",
         "detail": "대종(KI4)"
       },
       {
@@ -11771,6 +12810,24 @@
         "detail": "수천(KI5)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 수천인가요?",
+        "answer": "족소음신경",
+        "answerGroup": "key-meridian",
+        "detail": "수천(KI5)"
+      },
+      {
+        "prompt": "족소음신경의 낙혈 대종과 짝인 극혈은?",
+        "answer": "수천",
+        "answerGroup": "key-point-극혈",
+        "detail": "족소음신경 낙혈·극혈"
+      },
+      {
+        "prompt": "족소음신경의 극혈 수천과 짝인 낙혈은?",
+        "answer": "대종",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족소음신경 극혈·낙혈"
+      },
+      {
         "prompt": "수궐음심포경의 낙혈은?",
         "answer": "내관",
         "answerGroup": "key-point-낙혈",
@@ -11780,6 +12837,12 @@
         "prompt": "내관은 수궐음심포경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "내관(PC6)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 내관인가요?",
+        "answer": "수궐음심포경",
+        "answerGroup": "key-meridian",
         "detail": "내관(PC6)"
       },
       {
@@ -11795,6 +12858,24 @@
         "detail": "극문(PC4)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 극문인가요?",
+        "answer": "수궐음심포경",
+        "answerGroup": "key-meridian",
+        "detail": "극문(PC4)"
+      },
+      {
+        "prompt": "수궐음심포경의 낙혈 내관과 짝인 극혈은?",
+        "answer": "극문",
+        "answerGroup": "key-point-극혈",
+        "detail": "수궐음심포경 낙혈·극혈"
+      },
+      {
+        "prompt": "수궐음심포경의 극혈 극문과 짝인 낙혈은?",
+        "answer": "내관",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수궐음심포경 극혈·낙혈"
+      },
+      {
         "prompt": "수소양삼초경의 낙혈은?",
         "answer": "외관",
         "answerGroup": "key-point-낙혈",
@@ -11804,6 +12885,12 @@
         "prompt": "외관은 수소양삼초경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "외관(TE5)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 외관인가요?",
+        "answer": "수소양삼초경",
+        "answerGroup": "key-meridian",
         "detail": "외관(TE5)"
       },
       {
@@ -11819,6 +12906,24 @@
         "detail": "회종(TE7)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 회종인가요?",
+        "answer": "수소양삼초경",
+        "answerGroup": "key-meridian",
+        "detail": "회종(TE7)"
+      },
+      {
+        "prompt": "수소양삼초경의 낙혈 외관과 짝인 극혈은?",
+        "answer": "회종",
+        "answerGroup": "key-point-극혈",
+        "detail": "수소양삼초경 낙혈·극혈"
+      },
+      {
+        "prompt": "수소양삼초경의 극혈 회종과 짝인 낙혈은?",
+        "answer": "외관",
+        "answerGroup": "key-point-낙혈",
+        "detail": "수소양삼초경 극혈·낙혈"
+      },
+      {
         "prompt": "족소양담경의 낙혈은?",
         "answer": "광명",
         "answerGroup": "key-point-낙혈",
@@ -11828,6 +12933,12 @@
         "prompt": "광명은 족소양담경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "광명(GB37)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 광명인가요?",
+        "answer": "족소양담경",
+        "answerGroup": "key-meridian",
         "detail": "광명(GB37)"
       },
       {
@@ -11843,6 +12954,24 @@
         "detail": "외구(GB36)"
       },
       {
+        "prompt": "어느 경맥의 극혈이 외구인가요?",
+        "answer": "족소양담경",
+        "answerGroup": "key-meridian",
+        "detail": "외구(GB36)"
+      },
+      {
+        "prompt": "족소양담경의 낙혈 광명과 짝인 극혈은?",
+        "answer": "외구",
+        "answerGroup": "key-point-극혈",
+        "detail": "족소양담경 낙혈·극혈"
+      },
+      {
+        "prompt": "족소양담경의 극혈 외구과 짝인 낙혈은?",
+        "answer": "광명",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족소양담경 극혈·낙혈"
+      },
+      {
         "prompt": "족궐음간경의 낙혈은?",
         "answer": "여구",
         "answerGroup": "key-point-낙혈",
@@ -11852,6 +12981,12 @@
         "prompt": "여구은 족궐음간경에서 어떤 요혈?",
         "answer": "낙혈",
         "answerGroup": "key-type",
+        "detail": "여구(LR5)"
+      },
+      {
+        "prompt": "어느 경맥의 낙혈이 여구인가요?",
+        "answer": "족궐음간경",
+        "answerGroup": "key-meridian",
         "detail": "여구(LR5)"
       },
       {
@@ -11865,6 +13000,24 @@
         "answer": "극혈",
         "answerGroup": "key-type",
         "detail": "중도(LR6)"
+      },
+      {
+        "prompt": "어느 경맥의 극혈이 중도인가요?",
+        "answer": "족궐음간경",
+        "answerGroup": "key-meridian",
+        "detail": "중도(LR6)"
+      },
+      {
+        "prompt": "족궐음간경의 낙혈 여구과 짝인 극혈은?",
+        "answer": "중도",
+        "answerGroup": "key-point-극혈",
+        "detail": "족궐음간경 낙혈·극혈"
+      },
+      {
+        "prompt": "족궐음간경의 극혈 중도과 짝인 낙혈은?",
+        "answer": "여구",
+        "answerGroup": "key-point-낙혈",
+        "detail": "족궐음간경 극혈·낙혈"
       },
       {
         "prompt": "임맥의 낙혈은?",
@@ -13329,6 +14482,717 @@
         "answer": "토혈",
         "answerGroup": "five-phase-category",
         "detail": "양릉천(GB34)"
+      }
+    ]
+  },
+  "extras": {
+    "code": "EX",
+    "name": "경외기혈",
+    "points": [
+      {
+        "id": "EX-HN1",
+        "code": "EX",
+        "referenceCode": "HN1",
+        "number": 1,
+        "name": "사신총",
+        "region": "두경부",
+        "image": "assets/images/Extras/Sishencong.webp",
+        "location": [
+          "두정부로 백회혈에서 전후좌우 각 1촌 떨어진 곳"
+        ],
+        "indications": [
+          "두통, 현운, 전간, 불면, 건망증"
+        ]
+      },
+      {
+        "id": "EX-HN2",
+        "code": "EX",
+        "referenceCode": "HN2",
+        "number": 2,
+        "name": "당양",
+        "region": "두경부",
+        "image": "assets/images/Extras/Dangyang.webp",
+        "location": [
+          "전두부의 동공 직상으로 전발제 상측 1촌, 두임읍혈 상측 0.5촌"
+        ],
+        "indications": [
+          "두통, 현운, 안충혈, 비색"
+        ]
+      },
+      {
+        "id": "EX-HN3",
+        "code": "EX",
+        "referenceCode": "HN3",
+        "number": 3,
+        "name": "인당",
+        "region": "두경부",
+        "image": "assets/images/Extras/Yintang.webp",
+        "location": [
+          "양 미모 사이로 미간의 중앙"
+        ],
+        "indications": [
+          "두통, 현운, 불면, 비염, 결막염"
+        ]
+      },
+      {
+        "id": "EX-HN4",
+        "code": "EX",
+        "referenceCode": "HN4",
+        "number": 4,
+        "name": "어요",
+        "region": "두경부",
+        "image": "assets/images/Extras/Yuyao.webp",
+        "location": [
+          "동공 중앙의 수직선상으로 미모 중앙"
+        ],
+        "indications": [
+          "전두통, 안질환, 구안와사, 삼차신경통"
+        ]
+      },
+      {
+        "id": "EX-HN5",
+        "code": "EX",
+        "referenceCode": "HN5",
+        "number": 5,
+        "name": "태양",
+        "region": "두경부",
+        "image": "assets/images/Extras/Taiyang.webp",
+        "location": [
+          "미모 외단과 외안각 사이에서 후측 1촌의 함요부"
+        ],
+        "indications": [
+          "두통, 감기, 안면신경마비, 치통, 안질환, 우울증"
+        ]
+      },
+      {
+        "id": "EX-HN6",
+        "code": "EX",
+        "referenceCode": "HN6",
+        "number": 6,
+        "name": "이첨",
+        "region": "두경부",
+        "image": "assets/images/Extras/Erjianxue.webp",
+        "location": [
+          "귀를 앞으로 접었을 때 나타나는 이륜 상단의 뾰족한 곳"
+        ],
+        "indications": [
+          "두통, 해열, 고혈압"
+        ]
+      },
+      {
+        "id": "EX-HN7",
+        "code": "EX",
+        "referenceCode": "HN7",
+        "number": 7,
+        "name": "구후",
+        "region": "두경부",
+        "image": "assets/images/Extras/Qiuhou.webp",
+        "location": [
+          "안구와 안와 하연 사이로 안와 하연의 외측 1/4 지점"
+        ],
+        "indications": [
+          "안구 충혈, 근시, 백내장, 야맹증"
+        ]
+      },
+      {
+        "id": "EX-HN8",
+        "code": "EX",
+        "referenceCode": "HN8",
+        "number": 8,
+        "name": "상영향",
+        "region": "두경부",
+        "image": "assets/images/Extras/Shangyingxiang.webp",
+        "location": [
+          "비순구상으로 비익이 시작되는 곳"
+        ],
+        "indications": [
+          "비색, 비염, 축농증"
+        ]
+      },
+      {
+        "id": "EX-HN9",
+        "code": "EX",
+        "referenceCode": "HN9",
+        "number": 9,
+        "name": "내영향",
+        "region": "두경부",
+        "image": "assets/images/Extras/Neiyingxiang.webp",
+        "location": [
+          "비공의 상단으로 상영향 내측"
+        ],
+        "indications": [
+          "안충혈, 결막염, 후두염"
+        ]
+      },
+      {
+        "id": "EX-HN10",
+        "code": "EX",
+        "referenceCode": "HN10",
+        "number": 10,
+        "name": "취천",
+        "region": "두경부",
+        "image": "assets/images/Extras/Juquan.webp",
+        "location": [
+          "혀의 윗부분으로 혀의 정중앙선의 중간점"
+        ],
+        "indications": [
+          "설근마비, 천식, 언어장애"
+        ]
+      },
+      {
+        "id": "EX-HN11",
+        "code": "EX",
+        "referenceCode": "HN11",
+        "number": 11,
+        "name": "해천",
+        "region": "두경부",
+        "image": "assets/images/Extras/Haiquan.webp",
+        "location": [
+          "혀의 아래 부분으로 설하 설계대의 중앙"
+        ],
+        "indications": [
+          "횡격막경련, 설염, 인후염, 혀 마비"
+        ]
+      },
+      {
+        "id": "EX-HN12",
+        "code": "EX",
+        "referenceCode": "HN12",
+        "number": 12,
+        "name": "금진",
+        "region": "두경부",
+        "image": "assets/images/Extras/Jinjin.webp",
+        "location": [
+          "혀의 아래 부분으로 설계대 좌측"
+        ],
+        "indications": [
+          "입안의 모든 병과 구토, 당뇨병, 편도선염, 급성위장염, 언어불능"
+        ]
+      },
+      {
+        "id": "EX-HN13",
+        "code": "EX",
+        "referenceCode": "HN13",
+        "number": 13,
+        "name": "옥액",
+        "region": "두경부",
+        "image": "assets/images/Extras/Yuye.webp",
+        "location": [
+          "혀의 아래 부분으로 설계대 우측"
+        ],
+        "indications": [
+          "입안의 모든 병과 구토, 당뇨병, 편도선염, 급성위장염, 언어불능"
+        ]
+      },
+      {
+        "id": "EX-HN14",
+        "code": "EX",
+        "referenceCode": "HN14",
+        "number": 14,
+        "name": "예명",
+        "region": "두경부",
+        "image": "assets/images/Extras/Yiming.webp",
+        "location": [
+          "후경부로 풍지혈과 예풍혈의 중간"
+        ],
+        "indications": [
+          "안질환, 이하선염, 이명, 현운, 불면, 두통"
+        ]
+      },
+      {
+        "id": "EX-HN15",
+        "code": "EX",
+        "referenceCode": "HN15",
+        "number": 15,
+        "name": "백로",
+        "region": "두경부",
+        "image": "assets/images/Extras/Jingbailao.webp",
+        "location": [
+          "대추혈 상측 2촌에서 좌우 각 1촌"
+        ],
+        "indications": [
+          "낙침, 기침, 가래, 천식, 폐결핵"
+        ]
+      },
+      {
+        "id": "EX-CA1",
+        "code": "EX",
+        "referenceCode": "CA1",
+        "number": 16,
+        "name": "자궁",
+        "region": "흉복부",
+        "image": "assets/images/Extras/Zigongxue.webp",
+        "location": [
+          "하복부의 중극혈 양측 3촌"
+        ],
+        "indications": [
+          "월경불순, 월경통, 불임, 고환 및 전립선질환"
+        ]
+      },
+      {
+        "id": "EX-B1",
+        "code": "EX",
+        "referenceCode": "B1",
+        "number": 17,
+        "name": "정천",
+        "region": "배부",
+        "image": "assets/images/Extras/Dingchuan.webp",
+        "location": [
+          "대추혈 외측 0.5촌"
+        ],
+        "indications": [
+          "해수, 천식, 낙침"
+        ]
+      },
+      {
+        "id": "EX-B2",
+        "code": "EX",
+        "referenceCode": "B2",
+        "number": 18,
+        "name": "협척",
+        "region": "배부",
+        "image": "assets/images/Extras/Jiaji.webp",
+        "location": [
+          "제1흉추~제5요추극돌기의 외측 0.5촌으로 좌우 34혈"
+        ],
+        "indications": [
+          "상흉부(심폐 및 상지질환), 하흉부(비위질환), 요추부(요부, 복부, 하지질환)"
+        ]
+      },
+      {
+        "id": "EX-B3",
+        "code": "EX",
+        "referenceCode": "B3",
+        "number": 19,
+        "name": "위완하수",
+        "region": "배부",
+        "image": "assets/images/Extras/Weiwanxiashu.webp",
+        "location": [
+          "제8흉추극돌기 하연의 외측 1.5촌"
+        ],
+        "indications": [
+          "당뇨병, 복통, 구토, 흉협통"
+        ]
+      },
+      {
+        "id": "EX-B4",
+        "code": "EX",
+        "referenceCode": "B4",
+        "number": 20,
+        "name": "비근",
+        "region": "배부",
+        "image": "assets/images/Extras/Pigen.webp",
+        "location": [
+          "제1요추극돌기 하연의 외측 3.5촌 즉 황문혈 외측 0.5촌"
+        ],
+        "indications": [
+          "요통, 위질환, 장염, 간염"
+        ]
+      },
+      {
+        "id": "EX-B5",
+        "code": "EX",
+        "referenceCode": "B5",
+        "number": 21,
+        "name": "하극수",
+        "region": "배부",
+        "image": "assets/images/Extras/Xiajishu.webp",
+        "location": [
+          "요부의 정중선상으로 제3요추극돌기 직하의 함요부"
+        ],
+        "indications": [
+          "요통, 복통, 방광염, 설사, 하지마비"
+        ]
+      },
+      {
+        "id": "EX-B6",
+        "code": "EX",
+        "referenceCode": "B6",
+        "number": 22,
+        "name": "요의",
+        "region": "배부",
+        "image": "assets/images/Extras/Yaoyi.webp",
+        "location": [
+          "제4요추극돌기 직하(요양관혈) 외측 3촌, 대장수혈 외측 1.5촌"
+        ],
+        "indications": [
+          "생식기계 질환, 요통"
+        ]
+      },
+      {
+        "id": "EX-B7",
+        "code": "EX",
+        "referenceCode": "B7",
+        "number": 23,
+        "name": "요안",
+        "region": "배부",
+        "image": "assets/images/Extras/Yaoyan.webp",
+        "location": [
+          "제4요추극돌기 직하(요양관혈) 외측 3.5촌, 요의혈 외측 0.5촌"
+        ],
+        "indications": [
+          "요통, 강장, 생식기계 질환"
+        ]
+      },
+      {
+        "id": "EX-B8",
+        "code": "EX",
+        "referenceCode": "B8",
+        "number": 24,
+        "name": "십칠추",
+        "region": "배부",
+        "image": "assets/images/Extras/Shiqizhui.webp",
+        "location": [
+          "요부의 정중선상으로 제5요추극돌기 직하의 함요부"
+        ],
+        "indications": [
+          "요통, 하지마비, 부인과질환"
+        ]
+      },
+      {
+        "id": "EX-B9",
+        "code": "EX",
+        "referenceCode": "B9",
+        "number": 25,
+        "name": "요기",
+        "region": "배부",
+        "image": "assets/images/Extras/Yaoqi.webp",
+        "location": [
+          "천골부로 미골 하단 상측 2촌의 함요부"
+        ],
+        "indications": [
+          "요통, 두통, 불면, 변비, 전간"
+        ]
+      },
+      {
+        "id": "EX-UE1",
+        "code": "EX",
+        "referenceCode": "UE1",
+        "number": 26,
+        "name": "주첨",
+        "region": "상지부",
+        "image": "assets/images/Extras/Zhoujian.webp",
+        "location": [
+          "주두의 모서리 끝단"
+        ],
+        "indications": [
+          "테니스엘보, 나력, 종기"
+        ]
+      },
+      {
+        "id": "EX-UE2",
+        "code": "EX",
+        "referenceCode": "UE2",
+        "number": 27,
+        "name": "이백",
+        "region": "상지부",
+        "image": "assets/images/Extras/Erbai.webp",
+        "location": [
+          "대릉혈 상측 4촌에서 요측수근굴근의 내외연 각 1혈"
+        ],
+        "indications": [
+          "치질, 탈항, 흉협통"
+        ]
+      },
+      {
+        "id": "EX-UE3",
+        "code": "EX",
+        "referenceCode": "UE3",
+        "number": 28,
+        "name": "중천",
+        "region": "상지부",
+        "image": "assets/images/Extras/Zhongquan.webp",
+        "location": [
+          "수근 후면 횡문상으로 양지혈과 양계혈의 중앙"
+        ],
+        "indications": [
+          "해수, 천식, 심장통증, 안구질환, 구토"
+        ]
+      },
+      {
+        "id": "EX-UE4",
+        "code": "EX",
+        "referenceCode": "UE4",
+        "number": 29,
+        "name": "중괴",
+        "region": "상지부",
+        "image": "assets/images/Extras/Zhongkui.webp",
+        "location": [
+          "중지 후측의 정중선으로 근위수지절간관절 중앙"
+        ],
+        "indications": [
+          "구토, 식욕부진, 애역, 비출혈, 치통"
+        ]
+      },
+      {
+        "id": "EX-UE5",
+        "code": "EX",
+        "referenceCode": "UE5",
+        "number": 30,
+        "name": "대골공",
+        "region": "상지부",
+        "image": "assets/images/Extras/Dagukong.webp",
+        "location": [
+          "무지 후측의 정중선으로 수지간관절의 중앙"
+        ],
+        "indications": [
+          "안질환, 구토, 설사, 급성위장염"
+        ]
+      },
+      {
+        "id": "EX-UE6",
+        "code": "EX",
+        "referenceCode": "UE6",
+        "number": 31,
+        "name": "소골공",
+        "region": "상지부",
+        "image": "assets/images/Extras/Xiaogukong.webp",
+        "location": [
+          "소지 후측의 정중선으로 근위수지절간관절 중앙"
+        ],
+        "indications": [
+          "안질환, 인후염, 이명, 수지관절통"
+        ]
+      },
+      {
+        "id": "EX-UE7",
+        "code": "EX",
+        "referenceCode": "UE7",
+        "number": 32,
+        "name": "요통점",
+        "region": "상지부",
+        "image": "assets/images/Extras/Yaotongdian.webp",
+        "location": [
+          "수배로 제2, 3중수골 접합부 전측, 제4, 5중수골 접합부 전측의 좌우 4혈"
+        ],
+        "indications": [
+          "요통, 이명, 두통"
+        ]
+      },
+      {
+        "id": "EX-UE8",
+        "code": "EX",
+        "referenceCode": "UE8",
+        "number": 33,
+        "name": "외로궁",
+        "region": "상지부",
+        "image": "assets/images/Extras/Wailaogong.webp",
+        "location": [
+          "수배의 제2, 3중수골간으로 노궁혈의 반대쪽"
+        ],
+        "indications": [
+          "소아경풍, 수지마비, 낙침"
+        ]
+      },
+      {
+        "id": "EX-UE9",
+        "code": "EX",
+        "referenceCode": "UE9",
+        "number": 34,
+        "name": "팔사",
+        "region": "상지부",
+        "image": "assets/images/Extras/Baxie.webp",
+        "location": [
+          "수배로 중수지절관절 사이의 함요부로서 수배와 수장의 경계에 위치한 대도(무지와 시지 사이), 상도(시지와 중지 사이), 중도(중지와 약지 사이), 하도(약지와 소지 사이)의 좌우 8혈"
+        ],
+        "indications": [
+          "치통, 두통, 수지마비, 인후통, 번열, 항강"
+        ]
+      },
+      {
+        "id": "EX-UE10",
+        "code": "EX",
+        "referenceCode": "UE10",
+        "number": 35,
+        "name": "사봉",
+        "region": "상지부",
+        "image": "assets/images/Extras/Sifeng.webp",
+        "location": [
+          "사지 전측으로 근위수지절간관절 횡문의 중앙 4혈"
+        ],
+        "indications": [
+          "백일해, 소아소화불량, 수지관절염"
+        ]
+      },
+      {
+        "id": "EX-UE11",
+        "code": "EX",
+        "referenceCode": "UE11",
+        "number": 36,
+        "name": "십선",
+        "region": "상지부",
+        "image": "assets/images/Extras/Shixuan.webp",
+        "location": [
+          "모든 수지 첨단의 중앙으로 조갑단에서 지복 쪽으로 0.1촌 지점의 10혈"
+        ],
+        "indications": [
+          "혼수, 고열, 소아경풍, 뇌빈혈, 뇌졸중"
+        ]
+      },
+      {
+        "id": "EX-LE1",
+        "code": "EX",
+        "referenceCode": "LE1",
+        "number": 37,
+        "name": "관골",
+        "region": "하지부",
+        "image": "assets/images/Extras/Kuangu.webp",
+        "location": [
+          "양구혈 내외측 각 1.5촌"
+        ],
+        "indications": [
+          "하지부종, 슬관절염, 하지마비"
+        ]
+      },
+      {
+        "id": "EX-LE2",
+        "code": "EX",
+        "referenceCode": "LE2",
+        "number": 38,
+        "name": "학정",
+        "region": "하지부",
+        "image": "assets/images/Extras/Heding.webp",
+        "location": [
+          "슬개골 상연의 중앙 함요부"
+        ],
+        "indications": [
+          "하지무력, 슬관절통"
+        ]
+      },
+      {
+        "id": "EX-LE3",
+        "code": "EX",
+        "referenceCode": "LE3",
+        "number": 39,
+        "name": "백충와",
+        "region": "하지부",
+        "image": "assets/images/Extras/Baichongwo.webp",
+        "location": [
+          "슬개골 내상각 상측 3촌 즉 혈해혈 상측 1촌"
+        ],
+        "indications": [
+          "두드러기, 충적, 피부소양증"
+        ]
+      },
+      {
+        "id": "EX-LE4",
+        "code": "EX",
+        "referenceCode": "LE4",
+        "number": 40,
+        "name": "슬안",
+        "region": "하지부",
+        "image": "assets/images/Extras/Xiyan.webp",
+        "location": [
+          "슬개골 하측의 양쪽 함요부에 있는 2개의 혈로 외측은 외슬안, 내측은 내슬안"
+        ],
+        "indications": [
+          "슬관절염, 각기, 중풍"
+        ]
+      },
+      {
+        "id": "EX-LE5",
+        "code": "EX",
+        "referenceCode": "LE5",
+        "number": 41,
+        "name": "담낭",
+        "region": "하지부",
+        "image": "assets/images/Extras/Dannangxue.webp",
+        "location": [
+          "비골소두의 전하측(양릉천) 하측 2촌"
+        ],
+        "indications": [
+          "담낭염, 담도질환, 하지마비"
+        ]
+      },
+      {
+        "id": "EX-LE6",
+        "code": "EX",
+        "referenceCode": "LE6",
+        "number": 42,
+        "name": "난미",
+        "region": "하지부",
+        "image": "assets/images/Extras/Lanwei.webp",
+        "location": [
+          "하퇴 전외측으로 족삼리 하측 2촌"
+        ],
+        "indications": [
+          "충수염, 소화불량, 하지마비, 족하수"
+        ]
+      },
+      {
+        "id": "EX-LE7",
+        "code": "EX",
+        "referenceCode": "LE7",
+        "number": 43,
+        "name": "내과첨",
+        "region": "하지부",
+        "image": "assets/images/Extras/Neihuaijian.webp",
+        "location": [
+          "내과의 최고점"
+        ],
+        "indications": [
+          "족부염좌, 치통, 인후통, 편도선염"
+        ]
+      },
+      {
+        "id": "EX-LE8",
+        "code": "EX",
+        "referenceCode": "LE8",
+        "number": 44,
+        "name": "외과첨",
+        "region": "하지부",
+        "image": "assets/images/Extras/Waihuaijian.webp",
+        "location": [
+          "외과의 최고점"
+        ],
+        "indications": [
+          "각기, 치통, 통풍, 편마비, 위경련, 소아중설"
+        ]
+      },
+      {
+        "id": "EX-LE9",
+        "code": "EX",
+        "referenceCode": "LE9",
+        "number": 45,
+        "name": "팔풍",
+        "region": "하지부",
+        "image": "assets/images/Extras/Bafeng.webp",
+        "location": [
+          "족배로 중족지절관절 사이의 함요부로서 좌우 8혈(행간혈, 내정혈, 협계혈 포함)"
+        ],
+        "indications": [
+          "두통, 치통, 복통, 월경불순, 족부 질환"
+        ]
+      },
+      {
+        "id": "EX-LE10",
+        "code": "EX",
+        "referenceCode": "LE10",
+        "number": 46,
+        "name": "독음",
+        "region": "하지부",
+        "image": "assets/images/Extras/Duyin.webp",
+        "location": [
+          "족저 부위로 제2족지절간관절의 원위측 횡문의 중앙"
+        ],
+        "indications": [
+          "월경불순, 생리통, 난산"
+        ]
+      },
+      {
+        "id": "EX-LE11",
+        "code": "EX",
+        "referenceCode": "LE11",
+        "number": 47,
+        "name": "기단",
+        "region": "하지부",
+        "image": "assets/images/Extras/Qiduan.webp",
+        "location": [
+          "모든 족지 첨단의 중앙으로 조갑단에서 지복 쪽으로 0.1촌 지점의 10혈"
+        ],
+        "indications": [
+          "중풍, 구급, 족지마비, 급성복통"
+        ]
       }
     ]
   }

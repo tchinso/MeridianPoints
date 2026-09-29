@@ -49,6 +49,7 @@ const modelViewerCloseButton = modelViewerSheet?.querySelector("button[data-clos
 
 let data = null;
 let allPoints = [];
+let searchablePoints = [];
 let meridianByCode = new Map();
 let pointById = new Map();
 let termGlossary = {};
@@ -1320,6 +1321,15 @@ function decorateData() {
   }
 
   allPoints = data.meridians.flatMap((meridian) => meridian.points);
+  const extras = data.extras;
+  if (extras?.points?.length) {
+    meridianByCode.set("EX", extras);
+    for (const point of extras.points) {
+      point.meridianName = extras.name;
+      pointById.set(point.id, point);
+    }
+  }
+  searchablePoints = [...allPoints, ...(extras?.points || [])];
 }
 
 function handleAppClick(event) {
@@ -1350,6 +1360,10 @@ function handleAppClick(event) {
     selectedSpecialUnit = false;
     selectedMeridian = meridianByCode.get(code);
     renderMenu();
+  }
+
+  if (action === "select-extra-unit") {
+    startStudy("EX");
   }
 
   if (action === "select-special-unit") {
@@ -1451,7 +1465,7 @@ function renderHome() {
   app.innerHTML = `
     <section class="screen">
       <div class="screen-heading">
-        <p class="kicker">${data.meridians.length + (hasSpecialUnit() ? 1 : 0)}개 단원</p>
+        <p class="kicker">${data.meridians.length + (hasSpecialUnit() ? 1 : 0) + (hasExtraUnit() ? 1 : 0)}개 단원</p>
         <h2>단원을 고르세요</h2>
       </div>
       <div class="unit-grid">
@@ -1474,6 +1488,15 @@ function renderHomeUnitCards() {
       <button class="unit-card special-unit-card" type="button" data-action="select-special-unit">
         <strong>${SPECIAL_UNIT_TITLE}</strong>
         <span>${getImportantLessons().length}개 묶음</span>
+      </button>
+    `);
+  }
+
+  if (hasExtraUnit()) {
+    cards.push(`
+      <button class="unit-card extra-unit-card" type="button" data-action="select-extra-unit">
+        <strong>경외기혈</strong>
+        <span>${data.extras.points.length}혈 · 학습</span>
       </button>
     `);
   }
@@ -1505,6 +1528,10 @@ function renderUnitCard(meridian) {
 
 function hasSpecialUnit() {
   return getImportantLessons().length > 0;
+}
+
+function hasExtraUnit() {
+  return Boolean(data?.extras?.points?.length);
 }
 
 function getImportantLessons() {
@@ -1652,6 +1679,10 @@ function renderStudy() {
   }
 
   const point = selectedMeridian.points[studyIndex];
+  const isExtraPoint = point.code === "EX";
+  const studyKicker = isExtraPoint
+    ? `${selectedMeridian.name} · ${point.region} (${point.referenceCode})`
+    : selectedMeridian.name;
   app.innerHTML = `
     <section class="screen">
       <div class="study-top">
@@ -1662,29 +1693,30 @@ function renderStudy() {
       </div>
 
       <div class="point-title">
-        <p class="kicker">${escapeHtml(selectedMeridian.name)}</p>
+        <p class="kicker">${escapeHtml(studyKicker)}</p>
         <h2>${renderStudyPointName(point)}</h2>
         ${renderPointAliases(point)}
       </div>
 
       <figure class="image-panel">
         <img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.name)} 위치 이미지" />
-        <button
+        ${isExtraPoint ? "" : `<button
           class="three-d-open-button"
           type="button"
           data-action="open-3d-view"
           data-id="${escapeHtml(point.id)}"
           aria-haspopup="dialog"
           aria-label="3D로 보기"
-        >3D</button>
+        >3D</button>`}
       </figure>
 
       ${infoBlock("위치", point.location)}
-      ${infoBlock("취혈요령", point.technique)}
+      ${isExtraPoint ? infoBlock("주치", point.indications) : infoBlock("취혈요령", point.technique)}
       ${shouldShowMeridianImportantTip() ? renderMeridianImportantTip(selectedMeridian) : ""}
     </section>
   `;
 
+  if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
   preloadUpcomingStudyImages(studyIndex + 1);
 }
 
@@ -1708,14 +1740,15 @@ function isRegularMeridianStudy() {
 
 function renderStudyPointName(point) {
   const pointName = escapeHtml(point.name);
-  const isRegularStudy = isRegularMeridianStudy();
   const shouldShowRoleMarker = shouldShowPointRoleMarker(point);
   const keyType = shouldShowRoleMarker
     ? getPointKeyType(selectedMeridian, point)
     : "";
   const roleMarker = keyType === "낙혈" ? "낙" : keyType === "극혈" ? "극" : "";
   const isYuanPoint = shouldShowRoleMarker && point.note?.includes("원혈");
-  const fivePhase = isRegularStudy ? getFivePhaseItem(selectedMeridian, point) : null;
+  const fivePhase = PRIMARY_MERIDIAN_CODES.includes(selectedMeridian?.code)
+    ? getFivePhaseItem(selectedMeridian, point)
+    : null;
   const phaseLabel = fivePhase?.category?.replace(/혈$/, "") || "";
 
   const roleClass = roleMarker === "낙" ? "is-luo" : "is-xi";
@@ -1738,8 +1771,6 @@ function renderStudyPointName(point) {
 }
 
 function shouldShowPointRoleMarker(point) {
-  if (studyReturnTarget?.type === "special-study") return false;
-
   return (
     PRIMARY_MERIDIAN_CODES.includes(selectedMeridian?.code)
     || point?.id === "CV15"
@@ -1765,6 +1796,10 @@ function getFivePhaseItem(meridian, point) {
 function renderStudyBackButton() {
   if (studyReturnTarget?.type === "special-study") {
     return `<button class="text-button secondary return-button" type="button" data-action="back-special-study">요혈 학습</button>`;
+  }
+
+  if (selectedMeridian?.code === "EX") {
+    return `<button class="text-button secondary" type="button" data-action="back-home">단원</button>`;
   }
 
   return `<button class="text-button secondary" type="button" data-action="back-menu">메뉴</button>`;
@@ -2102,16 +2137,23 @@ function createSpecialQuizConfig(menuId) {
     return null;
   }
 
-  const targetLessons = cumulative ? lessons.slice(0, lessonIndex + 1) : [lesson];
+  const targetLessons = cumulative
+    ? lessons.slice(0, lessonIndex + 1).filter((item) => item.kind === lesson.kind)
+    : [lesson];
   const questionPool = targetLessons.flatMap((item) => item.quizItems);
+  const groupLabel = {
+    key: "요혈",
+    fiveShu: "오수혈",
+    fivePhase: "오행혈",
+  }[lesson.kind] || lesson.title;
 
   return {
     kind: "special",
-    title: cumulative ? `누적 퀴즈 1~${lessonIndex + 1}` : `${lesson.title} 퀴즈`,
+    title: cumulative ? `${groupLabel} 누적 퀴즈 1~${targetLessons.length}` : `${lesson.title} 퀴즈`,
     unitTitle: SPECIAL_UNIT_TITLE,
     questionPool,
-    optionScope: cumulative ? data.important.quizItems : questionPool,
-    count: Math.min(questionLimit, questionPool.length),
+    optionScope: questionPool,
+    count: questionLimit,
   };
 }
 
@@ -2140,9 +2182,8 @@ function buildSpecialQuestions(config) {
 
 function buildSpecialChoices(answer, config) {
   const primaryOptions = config.optionScope || config.questionPool;
-  const fallbackOptions = data.important?.quizItems || [];
   const fallbackTexts = SPECIAL_CHOICE_FALLBACKS[answer.answerGroup] || [];
-  const allAnswers = [...primaryOptions, ...fallbackOptions]
+  const allAnswers = primaryOptions
     .filter((item) => item.answerGroup === answer.answerGroup)
     .map((item) => item.answer);
   const uniqueAnswerCount = new Set([...allAnswers, ...fallbackTexts].map(normalizeText)).size;
@@ -2159,7 +2200,6 @@ function buildSpecialChoices(answer, config) {
   };
 
   addAnswers(primaryOptions.filter((item) => item.answerGroup === answer.answerGroup).map((item) => item.answer));
-  addAnswers(fallbackOptions.filter((item) => item.answerGroup === answer.answerGroup).map((item) => item.answer));
   addAnswers(fallbackTexts);
 
   return shuffle([...selected.values()]);
@@ -2308,7 +2348,7 @@ function renderSpecialQuestionPrompt(question) {
 
 function renderSpecialChoices(question) {
   return `
-    <div class="choice-grid names">
+    <div class="choice-grid names special-choices">
       ${question.choices
         .map(
           (choice) => `
@@ -2696,7 +2736,7 @@ function renderSearchResults(query) {
     return;
   }
 
-  const matches = allPoints
+  const matches = searchablePoints
     .filter((point) => getPointSearchText(point).includes(keyword))
     .slice(0, 50);
 
@@ -2712,7 +2752,7 @@ function renderSearchResults(query) {
           <img src="${escapeHtml(point.image)}" alt="" loading="lazy" />
           <span>
             <strong>${escapeHtml(point.name)}</strong>
-            <span>${escapeHtml(point.meridianName)}</span>
+            <span>${escapeHtml(point.code === "EX" ? `${point.meridianName} · ${point.region} · ${point.referenceCode}` : point.meridianName)}</span>
             ${point.aliases?.length ? `<span>별칭: ${escapeHtml(point.aliases.join(", "))}</span>` : ""}
           </span>
         </button>
@@ -2732,7 +2772,7 @@ function handleSearchResultClick(event) {
 }
 
 function getPointSearchText(point) {
-  return normalizeText([point.name, ...(point.aliases || [])].join(" "));
+  return normalizeText([point.name, point.referenceCode || "", ...(point.aliases || [])].join(" "));
 }
 
 function takeRepeatedShuffle(pool, count) {

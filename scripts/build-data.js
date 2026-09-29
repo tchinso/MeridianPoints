@@ -8,10 +8,29 @@ const outputDir = path.join(rootDir, "assets", "json");
 const meridianSourcePath = path.join(referencesDir, "MeridianPoints.txt");
 const locationSourcePath = path.join(referencesDir, "LocationAndIndications.txt");
 const importantSourcePath = path.join(referencesDir, "ImportantMeridianPoints.txt");
+const hanbangSourcePath = path.join(referencesDir, "HanbangText.txt");
 
 const meridianSource = fs.readFileSync(meridianSourcePath, "utf8");
 const locationSource = fs.readFileSync(locationSourcePath, "utf8");
 const importantSource = fs.readFileSync(importantSourcePath, "utf8");
+const hanbangSource = fs.readFileSync(hanbangSourcePath, "utf8");
+
+// HanbangText.txt identifies 경외기혈 by body region, while the supplied images
+// use the Chinese pronunciation of each point's name.
+const EXTRA_IMAGE_NAMES = {
+  HN1: "Sishencong", HN2: "Dangyang", HN3: "Yintang", HN4: "Yuyao", HN5: "Taiyang",
+  HN6: "Erjianxue", HN7: "Qiuhou", HN8: "Shangyingxiang", HN9: "Neiyingxiang",
+  HN10: "Juquan", HN11: "Haiquan", HN12: "Jinjin", HN13: "Yuye",
+  HN14: "Yiming", HN15: "Jingbailao", CA1: "Zigongxue",
+  B1: "Dingchuan", B2: "Jiaji", B3: "Weiwanxiashu", B4: "Pigen",
+  B5: "Xiajishu", B6: "Yaoyi", B7: "Yaoyan", B8: "Shiqizhui", B9: "Yaoqi",
+  UE1: "Zhoujian", UE2: "Erbai", UE3: "Zhongquan", UE4: "Zhongkui",
+  UE5: "Dagukong", UE6: "Xiaogukong", UE7: "Yaotongdian", UE8: "Wailaogong",
+  UE9: "Baxie", UE10: "Sifeng", UE11: "Shixuan",
+  LE1: "Kuangu", LE2: "Heding", LE3: "Baichongwo", LE4: "Xiyan",
+  LE5: "Dannangxue", LE6: "Lanwei", LE7: "Neihuaijian", LE8: "Waihuaijian",
+  LE9: "Bafeng", LE10: "Duyin", LE11: "Qiduan",
+};
 
 const MERIDIAN_ORDER = ["LU", "LI", "ST", "SP", "HT", "SI", "BL", "KI", "PC", "TE", "GB", "LR", "CV", "GV"];
 const KEY_POINT_TYPES = ["수혈", "모혈", "낙혈", "극혈"];
@@ -505,6 +524,93 @@ function applyPointAliases(meridians) {
   if (te22) te22.aliases = ["이화료"];
 }
 
+function parseExtraPoints(source) {
+  const start = source.indexOf("3) 경외기혈");
+  if (start < 0) throw new Error("HanbangText.txt has no 경외기혈 section.");
+
+  const points = [];
+  let region = "";
+  let currentPoint = null;
+  let currentField = null;
+
+  for (const rawLine of source.slice(start).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const regionMatch = line.match(/^\(\d+\)\s*(.+?)\s*\([A-Za-z, ]+\)$/);
+    if (regionMatch) {
+      region = regionMatch[1];
+      currentPoint = null;
+      currentField = null;
+      continue;
+    }
+
+    const pointMatch = line.match(/^(HN|CA|B|UE|LE)(\d+)\.\s*(.+?)\([^)]*\):/);
+    if (pointMatch) {
+      const referenceCode = `${pointMatch[1]}${Number(pointMatch[2])}`;
+      const imageName = EXTRA_IMAGE_NAMES[referenceCode];
+      if (!imageName) throw new Error(`No 경외기혈 image mapping for ${referenceCode}.`);
+
+      currentPoint = {
+        id: `EX-${referenceCode}`,
+        code: "EX",
+        referenceCode,
+        number: points.length + 1,
+        name: pointMatch[3].trim(),
+        region,
+        image: `assets/images/Extras/${imageName}.webp`,
+        location: "",
+        indications: "",
+      };
+      points.push(currentPoint);
+      currentField = null;
+      continue;
+    }
+
+    if (!currentPoint) continue;
+    const fieldMatch = line.match(/^-\s*(위치|주치):\s*(.*)$/);
+    if (fieldMatch) {
+      currentField = fieldMatch[1] === "위치" ? "location" : "indications";
+      appendExtraText(currentPoint, currentField, fieldMatch[2]);
+    } else if (currentField && !line.startsWith("-")) {
+      appendExtraText(currentPoint, currentField, line);
+    }
+  }
+
+  return {
+    code: "EX",
+    name: "경외기혈",
+    points: points.map((point) => ({
+      ...point,
+      location: point.location ? [point.location] : [],
+      indications: point.indications ? [point.indications] : [],
+    })),
+  };
+}
+
+function appendExtraText(point, field, value) {
+  // Textbook footnotes are inlined before the actual sentence continues on
+  // the next line (e.g. "현운, 257)257) 전간: ..." then "전간, 불면").
+  const cleaned = value.replace(/\d+\)\d+\).*$/, "").trim();
+  if (cleaned) point[field] += `${point[field] ? " " : ""}${cleaned}`;
+}
+
+function validateExtraPoints(extras) {
+  const warnings = [];
+  const ids = new Set();
+  for (const point of extras.points) {
+    if (ids.has(point.id)) warnings.push(`Duplicate 경외기혈 id ${point.id}.`);
+    ids.add(point.id);
+    if (!point.region) warnings.push(`${point.id} has no body region.`);
+    if (!point.location.length) warnings.push(`${point.id} has no location text.`);
+    if (!point.indications.length) warnings.push(`${point.id} has no indication text.`);
+    if (!fs.existsSync(path.join(rootDir, point.image))) {
+      warnings.push(`${point.id} image missing: ${point.image}`);
+    }
+  }
+  return warnings;
+}
+
 function parseImportantData(source, meridians) {
   const context = createImportantContext(meridians);
   const keyPoints = [];
@@ -773,7 +879,10 @@ function buildImportantLesson(definition, index, keyByCode, fiveByCode, context)
         values,
       });
 
-      for (const item of (keyByCode.get(code)?.items || []).filter((entry) => definition.types.includes(entry.type))) {
+      const keyItems = (keyByCode.get(code)?.items || [])
+        .filter((entry) => definition.types.includes(entry.type));
+
+      for (const item of keyItems) {
         quizItems.push({
           prompt: buildKeyPointPrompt(meridian, item),
           answer: item.pointName,
@@ -786,6 +895,32 @@ function buildImportantLesson(definition, index, keyByCode, fiveByCode, context)
           answerGroup: "key-type",
           detail: formatPointNameWithId(item),
         });
+
+        if (code !== "CV" && code !== "GV") {
+          quizItems.push({
+            prompt: `어느 경맥의 ${item.type}이 ${item.pointName}인가요?`,
+            answer: meridian.name,
+            answerGroup: "key-meridian",
+            detail: formatPointNameWithId(item),
+          });
+        }
+      }
+
+      if (definition.types.length === 2) {
+        const [firstType, secondType] = definition.types;
+        const firstItems = keyItems.filter((item) => item.type === firstType);
+        const secondItems = keyItems.filter((item) => item.type === secondType);
+
+        if (firstItems.length === 1 && secondItems.length === 1) {
+          for (const [item, pair] of [[firstItems[0], secondItems[0]], [secondItems[0], firstItems[0]]]) {
+            quizItems.push({
+              prompt: `${meridian.name}의 ${item.type} ${item.pointName}과 짝인 ${pair.type}은?`,
+              answer: pair.pointName,
+              answerGroup: `key-point-${pair.type}`,
+              detail: `${meridian.name} ${item.type}·${pair.type}`,
+            });
+          }
+        }
       }
       continue;
     }
@@ -884,8 +1019,9 @@ const parseWarnings = parseLocationDetails(locationSource, meridians);
 applyClarityOverrides(meridians);
 const orderedMeridians = reorderMeridians(meridians);
 applyPointAliases(orderedMeridians);
+const extras = parseExtraPoints(hanbangSource);
 const important = parseImportantData(importantSource, orderedMeridians);
-const validationWarnings = validate(orderedMeridians);
+const validationWarnings = [...validate(orderedMeridians), ...validateExtraPoints(extras)];
 const totalPoints = orderedMeridians.reduce((sum, meridian) => sum + meridian.points.length, 0);
 
 const data = {
@@ -894,6 +1030,7 @@ const data = {
     "assets/references/MeridianPoints.txt",
     "assets/references/LocationAndIndications.txt",
     "assets/references/ImportantMeridianPoints.txt",
+    "assets/references/HanbangText.txt",
   ],
   clarityReview: {
     reference: "assets/references/HanbangText.txt",
@@ -905,6 +1042,7 @@ const data = {
   termGlossary: TERM_GLOSSARY,
   meridians: orderedMeridians,
   important,
+  extras,
 };
 
 fs.mkdirSync(outputDir, { recursive: true });
@@ -913,6 +1051,7 @@ fs.writeFileSync(path.join(outputDir, "meridians.json"), `${JSON.stringify(data,
 console.log(`Wrote assets/json/meridians.json`);
 console.log(`Meridians: ${meridians.length}`);
 console.log(`Points: ${totalPoints}`);
+console.log(`Extra points: ${extras.points.length}`);
 
 const warnings = [...parseWarnings, ...validationWarnings];
 if (warnings.length) {
