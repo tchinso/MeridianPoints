@@ -517,8 +517,14 @@ function reorderMeridians(meridians) {
 
 function applyPointAliases(meridians) {
   const points = meridians.flatMap((meridian) => meridian.points);
+  const cv17 = points.find((point) => point.id === "CV17");
+  const gv26 = points.find((point) => point.id === "GV26");
+  const si18 = points.find((point) => point.id === "SI18");
   const li19 = points.find((point) => point.id === "LI19");
   const te22 = points.find((point) => point.id === "TE22");
+  if (cv17) cv17.aliases = ["전중"];
+  if (gv26) gv26.aliases = ["인중"];
+  if (si18) si18.aliases = ["권료"];
   // HanbangText.txt's 구화료(LI19)·이화료(TE22) match LocationAndIndications.txt's 화료 entries.
   if (li19) li19.aliases = ["구화료"];
   if (te22) te22.aliases = ["이화료"];
