@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { buildLocalizationRelations, validateLocalizationRelations } from "./acupoint-localization-relations.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_PATH = path.join(ROOT, "assets", "json", "meridians.json");
@@ -396,6 +397,46 @@ function closestDirectionallyCompatibleProjection(point, surface, intendedNormal
   };
 }
 
+// A closest-point snap may move a precisely authored midline or cun offset
+// sideways, or move one member of a horizontal reference row up/down. For
+// calibrated torso points, intersect the skin along depth instead. Barycentric
+// coordinates are solved in XY, so the authored X/Y remain on the triangle.
+// Only the intended front/back-facing surface is eligible; a missing
+// intersection is recorded explicitly and falls back to the ordinary audit.
+function depthConstrainedProjection(point, surface, intendedNormal, minimumNormalAlignment) {
+  const [px, py, pz] = point;
+  const { positions, indices } = surface;
+  let best = null;
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const a = indices[offset] * 3;
+    const b = indices[offset + 1] * 3;
+    const c = indices[offset + 2] * 3;
+    const abx = positions[b] - positions[a];
+    const aby = positions[b + 1] - positions[a + 1];
+    const acx = positions[c] - positions[a];
+    const acy = positions[c + 1] - positions[a + 1];
+    const determinant = abx * acy - aby * acx;
+    if (Math.abs(determinant) < 1e-12) continue;
+    const apx = px - positions[a];
+    const apy = py - positions[a + 1];
+    const second = (apx * acy - apy * acx) / determinant;
+    const third = (abx * apy - aby * apx) / determinant;
+    const first = 1 - second - third;
+    if (Math.min(first, second, third) < -1e-8) continue;
+    const z = positions[a + 2] * first + positions[b + 2] * second + positions[c + 2] * third;
+    // Do not attach an anterior/posterior point across the central depth
+    // plane when the mesh also contains inner or folded skin triangles.
+    if (intendedNormal[2] * z < 0) continue;
+    const triangle = offset / 3;
+    const alignment = triangleNormalAlignment(surface, triangle, first, second, third, intendedNormal);
+    if (alignment < minimumNormalAlignment) continue;
+    const distanceSquared = (z - pz) ** 2;
+    if (best && distanceSquared >= best.distanceSquared) continue;
+    best = { triangle, position: [px, py, z], barycentric: [first, second, third], distanceSquared, alignment };
+  }
+  return best;
+}
+
 function closestSurfaceProjection(point, surface, projectionOptions = {}) {
   const [px, py, pz] = point;
   const { positions, indices } = surface;
@@ -465,10 +506,25 @@ function closestSurfaceProjection(point, surface, projectionOptions = {}) {
   let normalAlignment = nearestNormalAlignment;
   let automaticDirectionGuard = automaticDirectionGuardRequested ? "not-needed" : "not-requested";
 
+  const preserveXY = Boolean(projectionOptions.preserveTransverseAndLongitudinal && intendedNormal);
+  const depthConstrained = preserveXY
+    ? depthConstrainedProjection(point, surface, intendedNormal, minimumNormalAlignment ?? 0.10)
+    : null;
+  if (depthConstrained) {
+    bestDistanceSquared = depthConstrained.distanceSquared;
+    bestTriangle = depthConstrained.triangle;
+    [bestX, bestY, bestZ] = depthConstrained.position;
+    [bestFirst, bestSecond, bestThird] = depthConstrained.barycentric;
+    normalAlignment = depthConstrained.alignment;
+    selection = "depth-constrained-triangle";
+  } else if (preserveXY) {
+    selection = "nearest-triangle-depth-fallback";
+  }
+
   // Only pay for a second pass when the nearest surface faces away from the
   // source route's intended side. This is important for close anterior and
   // posterior surfaces, as well as the medial/lateral faces of an arm.
-  if (intendedNormal && minimumNormalAlignment !== null && normalAlignment < minimumNormalAlignment) {
+  if (!depthConstrained && intendedNormal && minimumNormalAlignment !== null && normalAlignment < minimumNormalAlignment) {
     const constrained = closestDirectionallyCompatibleProjection(
       point,
       surface,
@@ -485,7 +541,7 @@ function closestSurfaceProjection(point, surface, projectionOptions = {}) {
     } else {
       selection = "nearest-triangle-normal-fallback";
     }
-  } else if (automaticDirectionGuardRequested && normalAlignment < AUTO_DIRECTION_GUARD_TRIGGER) {
+  } else if (!depthConstrained && automaticDirectionGuardRequested && normalAlignment < AUTO_DIRECTION_GUARD_TRIGGER) {
     const guarded = closestDirectionallyCompatibleProjection(
       point,
       surface,
@@ -526,6 +582,8 @@ function closestSurfaceProjection(point, surface, projectionOptions = {}) {
     minimumNormalAlignment,
     automaticDirectionGuard,
     selection,
+    preservedTransverseAndLongitudinal: Boolean(depthConstrained),
+    requestedTransverseAndLongitudinal: preserveXY,
   };
 }
 
@@ -568,19 +626,153 @@ function surfaceCalibrationNode(position, normal, surface, landmark) {
 
 const sn = surfaceCalibrationNode;
 
-// The product brief supplied this one comparison layout. These are still
-// estimated mesh-space positions, not a clinical calibration. Keeping the
-// values explicit prevents the generated interpolation from changing a
-// curated learning example when the wider route templates are refined.
-const EXAMPLE_COMPARISON_OVERRIDES = {
-  ST18: {
-    left: n([-0.25, 1.325, 0.274], [-0.42, 0.02, 0.91], "anterior-lateral-chest", "fifth intercostal comparison field"),
-    right: n([0.25, 1.325, 0.274], [0.42, 0.02, 0.91], "anterior-lateral-chest", "fifth intercostal comparison field"),
+// Shared asset landmarks replace point-number interpolation on the torso.
+// Distances are model-fit estimates; the relative cun counts and named rows
+// come from the source descriptions and WHO's proportional-location method.
+// A cun is regional: the upper abdomen and lower abdomen use their own
+// landmark spans, rather than treating one global XYZ distance as a cun.
+const TORSO_REFERENCE = {
+  // Skin_Body vertex 3944 is the centre of the anterior umbilical dimple:
+  // [-0.00054936, 1.07782447, 0.11580299], about 11 mm behind the skin at
+  // x +/- 0.020. A 3 mm landmark-fit tolerance covers the neighbouring
+  // dimple triangles. The old y1.040 target was a smooth abdominal surface.
+  umbilicusY: 1.078,
+  superiorPubicBorderY: 0.790,
+  upperAbdomenSevenCunY: 1.205,
+  lateralCun: 0.030,
+  sternalRows: {
+    CV16: { y: 1.328, z: 0.135, label: "fifth intercostal level" },
+    CV17: { y: 1.357, z: 0.130, label: "fourth intercostal level" },
+    CV18: { y: 1.389, z: 0.115, label: "third intercostal level" },
+    CV19: { y: 1.413, z: 0.102, label: "second intercostal level" },
+    CV20: { y: 1.432, z: 0.093, label: "first intercostal level" },
+    CV21: { y: 1.449, z: 0.081, label: "infraclavicular / first sternocostal level" },
   },
-  SP17: {
-    left: n([-0.275, 1.325, 0.153], [-0.68, 0.02, 0.74], "lateral-chest", "fifth intercostal comparison field"),
-    right: n([0.275, 1.325, 0.153], [0.68, 0.02, 0.74], "lateral-chest", "fifth intercostal comparison field"),
-  },
+};
+
+function abdomenLevel(cunFromUmbilicus) {
+  const step = cunFromUmbilicus < 0
+    ? (TORSO_REFERENCE.umbilicusY - TORSO_REFERENCE.superiorPubicBorderY) / 5
+    : (TORSO_REFERENCE.upperAbdomenSevenCunY - TORSO_REFERENCE.umbilicusY) / 7;
+  return round(TORSO_REFERENCE.umbilicusY + cunFromUmbilicus * step);
+}
+
+function makeTorsoReferenceCalibrations() {
+  const controls = {};
+  const referenceUrl = "https://iris.who.int/bitstream/handle/10665/353407/9789290613831-eng.pdf";
+  const add = (id, lateralCun, y, z, surface, landmark, basis, lateralOffset = null) => {
+    // On the rounded lateral thorax the six-cun row follows the surface;
+    // compressing its X component is an asset fit, not a different cun count.
+    const x = lateralOffset ?? (lateralCun === 6 ? 0.165 : lateralCun * TORSO_REFERENCE.lateralCun);
+    const lateralNormal = Math.min(0.80, x / 0.205);
+    controls[id] = {
+      ...sn([-round(x), y, z], [-lateralNormal, 0, Math.sqrt(1 - lateralNormal ** 2)], surface, landmark),
+      projection: {
+        preserveTransverseAndLongitudinal: true,
+        minimumNormalAlignment: 0.10,
+        sourceReferences: ["assets/json/meridians.json", referenceUrl],
+      },
+      calibrationBasis: {
+        method: "shared-anatomical-reference-level-and-regional-proportional-cun",
+        reference: basis,
+        ...(lateralCun !== null ? { lateralCun } : {}),
+        status: "estimated-model-fit-not-clinically-reviewed",
+      },
+    };
+  };
+  const abdominalRows = [
+    ["CV2", -5, 0.100], ["CV3", -4, 0.105], ["CV4", -3, 0.100],
+    ["CV5", -2, 0.103], ["CV6", -1.5, 0.110], ["CV7", -1, 0.120],
+    ["CV8", 0, 0.116], ["CV9", 1, 0.130], ["CV10", 2, 0.127],
+    ["CV11", 3, 0.128], ["CV12", 4, 0.131], ["CV13", 5, 0.134],
+    ["CV14", 6, 0.137], ["CV15", 7, 0.140],
+  ];
+  const rows = Object.fromEntries(abdominalRows.map(([id, cun, z]) => [id, { y: abdomenLevel(cun), z, cun }]));
+  for (const [id, row] of Object.entries(rows)) {
+    add(id, 0, row.y, row.z, row.cun === -5 ? "pubic" : row.cun > 0 ? "upper-abdomen" : "lower-abdomen", `${id} anterior midline, ${row.cun} cun from umbilicus`, "CV2 / CV8 / CV15 regional span");
+  }
+  controls.CV8.calibrationBasis.meshLandmark = {
+    mesh: SURFACE_MESH_NAME,
+    vertex: 3944,
+    position: [-0.00054936, 1.07782447, 0.11580299],
+    fitTolerance: 0.003,
+    evidence: "anterior-umbilical-dimple-about-11mm-deeper-than-flanks-at-x-plus-minus-0.020",
+  };
+  const pairedAbdominalRows = {
+    ST19: "CV14", ST20: "CV13", ST21: "CV12", ST22: "CV11", ST23: "CV10", ST24: "CV9",
+    ST25: "CV8", ST26: "CV7", ST27: "CV5", ST28: "CV4", ST29: "CV3", ST30: "CV2",
+    KI11: "CV2", KI12: "CV3", KI13: "CV4", KI14: "CV5", KI15: "CV7", KI16: "CV8",
+    KI17: "CV10", KI18: "CV11", KI19: "CV12", KI20: "CV13", KI21: "CV14",
+    SP12: "CV2", SP15: "CV8", SP16: "CV11", LR14: "CV14",
+  };
+  for (const [id, reference] of Object.entries(pairedAbdominalRows)) {
+    const lateralCun = id.startsWith("ST") ? 2 : id.startsWith("KI") ? 0.5 : 4;
+    const row = rows[reference];
+    add(id, lateralCun, row.y, round(row.z - lateralCun * 0.008), row.cun === -5 ? "pubic" : row.cun > 0 ? "upper-abdomen" : "lower-abdomen", `${id} ${lateralCun} cun lateral to ${reference}`, reference);
+  }
+  add("SP13", 4, abdomenLevel(-4.3), 0.075, "lower-abdomen", "SP13 0.7 cun superior to SP12", "SP12 + 0.7 lower-abdominal cun");
+  add("SP14", 4, abdomenLevel(-1.3), 0.080, "lower-abdomen", "SP14 three cun superior to SP13", "SP13 + 3 lower-abdominal cun");
+  // GB's lateral torso/iliac controls retain their named local surface
+  // offsets; no lateral cun count is inferred for the source descriptions.
+  add("GB26", null, rows.CV8.y, 0.055, "lateral-torso", "GB26 at the umbilical horizontal level", "CV8 horizontal level", 0.150);
+  add("GB27", null, rows.CV4.y, 0.060, "lateral-hip", "GB27 anterior iliac field at CV4 horizontal level", "CV4 horizontal level", 0.150);
+  const lowerAbdominalCun = (TORSO_REFERENCE.umbilicusY - TORSO_REFERENCE.superiorPubicBorderY) / 5;
+  add("GB28", null, round(rows.CV4.y - 0.5 * lowerAbdominalCun), 0.040, "lateral-hip", "GB28 half a cun inferior to GB27", "GB27 - 0.5 lower-abdominal cun", 0.175);
+
+  for (const [id, row] of Object.entries(TORSO_REFERENCE.sternalRows)) {
+    add(id, 0, row.y, row.z, "upper-sternum", `${id} sternal midline / ${row.label}`, row.label);
+  }
+  const chestRows = {
+    ST13: ["CV21", 4], ST14: ["CV20", 4], ST15: ["CV19", 4], ST16: ["CV18", 4], ST17: ["CV17", 4], ST18: ["CV16", 4],
+    KI22: ["CV16", 2], KI23: ["CV17", 2], KI24: ["CV18", 2], KI25: ["CV19", 2], KI26: ["CV20", 2], KI27: ["CV21", 2],
+    SP17: ["CV16", 6], SP18: ["CV17", 6], SP19: ["CV18", 6], SP20: ["CV19", 6], PC1: ["CV17", 5],
+  };
+  for (const [id, [reference, lateralCun]] of Object.entries(chestRows)) {
+    const row = TORSO_REFERENCE.sternalRows[reference];
+    const lateralChestDepth = { SP17: 0.025, SP18: 0.065, SP19: 0.060, SP20: 0.050 };
+    const z = lateralChestDepth[id] ?? round(row.z - Math.max(0, lateralCun - 4) * 0.018);
+    add(id, lateralCun, row.y, z, lateralCun >= 5 ? "lateral-chest" : "anterior-chest", `${id} ${lateralCun} cun lateral / ${row.label}`, `${reference} / ${row.label}`);
+  }
+  return controls;
+}
+
+const TORSO_REFERENCE_CALIBRATIONS = makeTorsoReferenceCalibrations();
+
+// The posterior mastoid/suboccipital landmarks must follow the skull base,
+// rather than inherit the old lower-neck control merely because its label
+// mentions GV16. These rows were fitted to the final skin and checked against
+// the GB12/GV16 source figures. Nearby superior/inferior controls move with
+// the reference group so a corrected skull-base point cannot collapse onto
+// the former occipital anchor. Absolute placements remain model estimates.
+function posteriorHeadReferenceNode(position, normal, surface, landmark, reference) {
+  return {
+    ...sn(position, normal, surface, landmark),
+    projection: {
+      preserveTransverseAndLongitudinal: true,
+      minimumNormalAlignment: 0.35,
+      sourceReferences: [
+        "assets/images/GB/GB12.webp", "assets/images/GV/GV16.webp", "assets/json/meridians.json",
+        "https://iris.who.int/bitstream/handle/10665/353407/9789290613831-eng.pdf",
+      ],
+    },
+    calibrationBasis: {
+      method: "shared-posterior-skull-base-reference-level",
+      reference,
+      status: "estimated-model-fit-not-clinically-reviewed",
+    },
+  };
+}
+
+const POSTERIOR_HEAD_REFERENCE_CALIBRATIONS = {
+  GB12: posteriorHeadReferenceNode([-0.060, 1.650, -0.050], [-0.66, 0, -0.75], "posterior-mastoid", "GB12 posteroinferior mastoid depression", "GV16 horizontal level / posterior-inferior mastoid"),
+  GB20: posteriorHeadReferenceNode([-0.030, 1.650, -0.075], [-0.40, 0.20, -0.90], "posterior-neck", "GB20 suboccipital SCM/trapezius recess", "GV16 horizontal level, medial to GB12"),
+  GV16: posteriorHeadReferenceNode([0, 1.650, -0.085], [0, 0.05, -1], "suboccipital-midline", "GV16 skull-base depression below external occipital protuberance", "GB12 / GB20 horizontal level"),
+  GV15: posteriorHeadReferenceNode([0, 1.625, -0.070], [0, 0, -1], "posterior-neck", "GV15 upper cervical posterior midline inferior to GV16", "GV16 inferior reference / C1-C2"),
+  BL10: posteriorHeadReferenceNode([-0.038, 1.625, -0.060], [-0.44, 0, -0.90], "posterior-neck", "BL10 lateral to GV15 at posterior hairline", "GV15 horizontal level"),
+  GV17: posteriorHeadReferenceNode([0, 1.685, -0.100], [0, 0.18, -0.98], "occiput", "GV17 depression superior to external occipital protuberance", "superior to GV16, inferior to GV18"),
+  GV18: posteriorHeadReferenceNode([0, 1.720, -0.100], [0, 0.38, -0.92], "occipital-scalp", "GV18 occipital scalp superior to GV17", "superior to GV17, inferior to GV19"),
+  BL9: posteriorHeadReferenceNode([-0.045, 1.685, -0.090], [-0.46, 0.02, -0.89], "occiput", "BL9 occipital field lateral to GV17", "GV17 horizontal level"),
+  GB19: posteriorHeadReferenceNode([-0.060, 1.685, -0.075], [-0.70, 0.05, -0.71], "occiput", "GB19 occipital field lateral to GV17", "GV17 horizontal level"),
 };
 
 // Asset-left point targets. `pointCalibrationOverrideFor` mirrors each one
@@ -665,10 +857,7 @@ const SURFACE_CALIBRATION_OVERRIDES = {
   BL64: sn([-0.160, 0.045, 0.100], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsal tuberosity border"),
   BL65: sn([-0.160, 0.030, 0.120], [-0.70, 0.40, 0.30], "lateral-foot", "fifth metatarsophalangeal border"),
   GB11: sn([-0.073, 1.692, -0.055], [-0.93, -0.13, -0.35], "posterior-auricular", "mastoid base posterior to ear"),
-  GB12: sn([-0.075, 1.542, -0.075], [-0.66, 0, -0.75], "posterior-mastoid", "GB12 posterior mastoid edge at GV16 horizontal level"),
   GB18: sn([-0.060, 1.760, -0.030], [-0.70, 0.60, -0.30], "parietal-scalp", "superior temporal/parietal scalp"),
-  GB19: sn([-0.070, 1.654, -0.075], [-0.70, 0.05, -0.71], "occiput", "GB19 occipital field at GV17 horizontal level"),
-  GB20: sn([-0.080, 1.540, -0.090], [-0.40, 0.20, -0.90], "posterior-neck", "suboccipital trapezius/SCM recess"),
   // GB22–28 crosses a fourth-intercostal lateral chest pair, costal margin,
   // umbilicus and anterior iliac line.  It cannot inherit the shoulder-to-hip
   // interpolation used by the long GB route.
@@ -814,7 +1003,7 @@ const SURFACE_CALIBRATION_OVERRIDES = {
 };
 
 function pointCalibrationOverrideFor(pointId, side) {
-  const override = SURFACE_CALIBRATION_OVERRIDES[pointId];
+  const override = POSTERIOR_HEAD_REFERENCE_CALIBRATIONS[pointId] || TORSO_REFERENCE_CALIBRATIONS[pointId] || SURFACE_CALIBRATION_OVERRIDES[pointId];
   if (!override) return null;
   if (side === "right") return mirrorNode(override);
   return override;
@@ -1012,8 +1201,8 @@ const ROUTE_TEMPLATES = {
       sn([-0.052, 1.785, 0.025], [-0.62, 0.77, 0.17], "parietal-scalp", "BL6 posterior to BL5"),
       sn([-0.052, 1.790, -0.010], [-0.63, 0.77, -0.10], "parietal-scalp", "BL7 anterior to GV20"),
       sn([-0.052, 1.772, -0.045], [-0.58, 0.65, -0.47], "posterior-parietal-scalp", "BL8 posterior to BL7"),
-      sn([-0.045, 1.654, -0.090], [-0.46, 0.02, -0.89], "occiput", "BL9 lateral to GV17 at the GV17 horizontal level"),
-      sn([-0.038, 1.555, -0.085], [-0.44, 0, -0.90], "posterior-neck", "BL10 lateral to GV15 at hairline"),
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.BL9,
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.BL10,
     ],
   },
   BL_inner: {
@@ -1258,10 +1447,10 @@ const ROUTE_TEMPLATES = {
     sideMode: "midline",
     label: "upper cervical midline over scalp",
     nodes: [
-      sn([0, 1.515, -0.075], [0, 0, -1], "posterior-neck", "GV15 C1–C2, 0.5 cun above posterior hairline"),
-      sn([0, 1.555, -0.105], [0, 0.05, -1], "suboccipital-midline", "GV16 inferior to external occipital protuberance"),
-      sn([0, 1.635, -0.110], [0, 0.18, -0.98], "occiput", "GV17 superior to external occipital protuberance"),
-      sn([0, 1.685, -0.105], [0, 0.38, -0.92], "occipital-scalp", "GV18 1.5 cun superior to GV17"),
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.GV15,
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.GV16,
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.GV17,
+      POSTERIOR_HEAD_REFERENCE_CALIBRATIONS.GV18,
       sn([0, 1.740, -0.080], [0, 0.66, -0.70], "posterior-parietal-scalp", "GV19 1.5 cun posterior to GV20"),
       sn([0, 1.795, -0.010], [0, 1, 0], "vertex", "GV20 vertex / interauricular line"),
       sn([0, 1.785, 0.030], [0, 0.92, 0.38], "anterior-parietal-scalp", "GV21 1.5 cun anterior to GV20"),
@@ -1441,12 +1630,9 @@ function makeInstance(point, assignment, side) {
   const template = ROUTE_TEMPLATES[assignment.range.routeId];
   const routeNodes = routePointsForSide(template, side);
   const calibrationOverride = pointCalibrationOverrideFor(point.id, side);
-  const comparisonOverride = EXAMPLE_COMPARISON_OVERRIDES[point.id]?.[side];
   const anchored = calibrationOverride
     ? calibrationOverride
-    : comparisonOverride
-      ? fitRouteNodeToModel(comparisonOverride)
-      : anchorAt(routeNodes, assignment.routeFraction);
+    : anchorAt(routeNodes, assignment.routeFraction);
   const sideSuffix = side === "left" ? "L" : side === "right" ? "R" : "M";
   const rawAnchor = {
     position: anchored.position,
@@ -1455,15 +1641,14 @@ function makeInstance(point, assignment, side) {
     landmark: anchored.landmark,
     ...(anchored.coordinateSpace ? { coordinateSpace: anchored.coordinateSpace } : {}),
     ...(anchored.projection ? { projection: anchored.projection } : {}),
+    ...(anchored.calibrationBasis ? { calibrationBasis: anchored.calibrationBasis } : {}),
     status: "estimated",
     reviewStatus: "needs-anatomical-and-model-fit-review",
     provenance: calibrationOverride
       ? "point-level-surface-calibration-with-source-evidence"
-      : comparisonOverride
-        ? "user-specified-comparison-layout"
-        : anchored.projection
-          ? "route-template-interpolation-with-reference-calibration"
-          : "route-template-interpolation",
+      : anchored.projection
+        ? "route-template-interpolation-with-reference-calibration"
+        : "route-template-interpolation",
   };
   return {
     instanceId: `${point.id}:${sideSuffix}`,
@@ -1503,6 +1688,9 @@ function attachmentAuditFor(rawAnchor, projection) {
   if (projection.automaticDirectionGuard.startsWith("rejected")) {
     flags.push("automatic-direction-guard-needs-route-review");
   }
+  if (projection.requestedTransverseAndLongitudinal && !projection.preservedTransverseAndLongitudinal) {
+    flags.push("anatomical-reference-level-projection-fallback");
+  }
 
   return {
     status: "estimated",
@@ -1526,7 +1714,7 @@ function createProjectionAuditSummary() {
   return {
     status: "estimated",
     reviewStatus: "needs-anatomical-and-model-fit-review",
-    method: "Each raw route anchor was compared with its rendered Skin_Body triangle attachment; directional guards only replace an opposite-facing nearest triangle when a nearby morphology-compatible surface is available.",
+    method: "Shared torso reference rows preserve transverse/longitudinal coordinates through depth-only triangle intersections; other route anchors use audited nearest-triangle projection with directional guards.",
     instanceCount: 0,
     attachmentAuditCoverage: "0/0",
     flaggedInstanceCount: 0,
@@ -1568,6 +1756,7 @@ function projectInstancesToFinalSurface(points, surface) {
         // automatic guard; explicit reviewer constraints remain opt-in.
         intendedNormal: instance.rawAnchor.normal,
         minimumNormalAlignment: instance.rawAnchor.projection?.minimumNormalAlignment,
+        preserveTransverseAndLongitudinal: instance.rawAnchor.projection?.preserveTransverseAndLongitudinal,
         automaticDirectionGuard: !instance.rawAnchor.projection && isDirectionallyDescribedSurface(instance.rawAnchor.surface),
         sourceSurface: instance.rawAnchor.surface,
       });
@@ -1577,7 +1766,7 @@ function projectInstancesToFinalSurface(points, surface) {
         ...instance.rawAnchor,
         position: projection.position,
         normal: projection.normal,
-        provenance: "nearest-triangle-projection",
+        provenance: projection.preservedTransverseAndLongitudinal ? "anatomical-reference-depth-projection" : "nearest-triangle-projection",
         rawProvenance: instance.rawAnchor.provenance,
         surfaceAttachment: {
           mesh: surface.meshName,
@@ -1591,6 +1780,7 @@ function projectInstancesToFinalSurface(points, surface) {
           minimumNormalAlignment: projection.minimumNormalAlignment,
           automaticDirectionGuard: projection.automaticDirectionGuard,
           selection: projection.selection,
+          preservedTransverseAndLongitudinal: projection.preservedTransverseAndLongitudinal,
           status: "estimated",
           reviewStatus: "needs-anatomical-and-model-fit-review",
           audit,
@@ -1674,61 +1864,13 @@ function assertSourcePoints(source) {
   return points;
 }
 
-function compatibleInstance(point, sourceLaterality) {
-  if (point.laterality === "midline") return point.instances[0];
-  const wanted = sourceLaterality === "right" ? "right" : "left";
-  return point.instances.find((instance) => instance.laterality === wanted);
-}
-
-function addNeighbourRelations(pointsById) {
-  const points = [...pointsById.values()];
-  for (const point of points) {
-    const primaryInstance = compatibleInstance(point, "left");
-    const candidates = points
-      .filter((candidate) => candidate.id !== point.id && candidate.meridian.code !== point.meridian.code)
-      .map((candidate) => {
-        const candidateInstance = compatibleInstance(candidate, primaryInstance.laterality);
-        return {
-          pointId: candidate.id,
-          instancePolicy: candidate.laterality === "midline" ? "midline" : "same-side",
-          surfaceDistance: round(distance(primaryInstance.anchor.position, candidateInstance.anchor.position)),
-        };
-      })
-      .filter((candidate) => candidate.surfaceDistance <= 0.16)
-      .sort((left, right) => left.surfaceDistance - right.surfaceDistance || left.pointId.localeCompare(right.pointId))
-      .slice(0, 4)
-      .map((candidate) => ({
-        ...candidate,
-        relationship: "computed-surface-proximity",
-        status: "estimated",
-        reviewStatus: "not-approved-for-comparison-display",
-      }));
-
-    const sequentialIds = [
-      point.number > 1 ? `${point.meridian.code}${point.number - 1}` : null,
-      point.number < point.meridian.pointCount ? `${point.meridian.code}${point.number + 1}` : null,
-    ].filter(Boolean);
-    const learningComparisonDisplay = [...new Set([
-      ...sequentialIds,
-      ...candidates.slice(0, 2).map((candidate) => candidate.pointId),
-    ])].filter((pointId) => pointId !== point.id).slice(0, 4);
-
-    point.neighbourRelations = {
-      sequential: {
-        previous: sequentialIds[0] || null,
-        next: sequentialIds[1] || null,
-        status: "source-order-only",
-        reviewStatus: "not-a-clinical-neighbour-claim",
-      },
-      computedSurfaceProximity: candidates,
-      curatedComparisonDisplay: [],
-      learningComparisonDisplay,
-      displayPolicy: "Render curatedComparisonDisplay when present; otherwise render learningComparisonDisplay as estimated black comparison markers.",
-    };
-  }
+function addNeighbourRelations(pointsById, sourcePoints) {
+  const localizationById = buildLocalizationRelations(sourcePoints);
+  for (const point of pointsById.values()) point.localization = localizationById.get(point.id);
 }
 
 function validate(output, sourcePoints) {
+  validateLocalizationRelations(output.points, sourcePoints);
   const outputIds = Object.keys(output.points);
   const sourceIds = new Set(sourcePoints.map((point) => point.id));
   const sourcePointsById = new Map(sourcePoints.map((point) => [point.id, point]));
@@ -1841,7 +1983,7 @@ function makeViewerDataset(prototype) {
 
   return {
     ...prototype,
-    version: "0.2.0-viewer-prototype",
+    version: "0.3.0-localization-prototype",
     model: {
       url: "assets/models/meridian-anatomy-v1.glb",
       surfaceMesh: "Skin_Body",
@@ -1854,18 +1996,11 @@ function makeViewerDataset(prototype) {
       markerRadius: 0.018,
       markerOffset: 0.008,
     },
-    comparisons: {
-      CV16: {
-        nearby: ["CV17", "CV15", "ST18", "SP17"],
-        status: "curated-display-set",
-        reviewStatus: "needs-anatomical-and-model-fit-review",
-        note: "User-specified learning comparison layout. Bilateral point entries render both left and right instances, yielding six black markers.",
-      },
-    },
     comparisonPolicy: {
-      default: "Sequential and nearest-surface estimated comparison points are displayed when no curated comparison set exists.",
-      renderableSource: "comparisons[pointId].nearby, then points[pointId].neighbourRelations.curatedComparisonDisplay, then learningComparisonDisplay",
-      markerMeaning: "Black markers are learning comparison relationships only; their clinical accuracy remains unreviewed in this prototype.",
+      default: "Display only documented anatomical levels, longitudinal lines, and explicit localisation reference acupoints; empty categories have no fallback.",
+      renderableSource: "points[pointId].localization.horizontal, vertical, and reference",
+      markerMeaning: "Markers distinguish the same anatomical level, the same source-defined longitudinal line, and an explicitly named localisation reference; each retains its exact source text.",
+      laterality: "Bilateral targets follow the selected side; a midline selection can show both sides. Midline targets render once.",
     },
     points,
   };
@@ -1911,9 +2046,9 @@ function build() {
 
   const surface = loadFinalSurface();
   const projection = projectInstancesToFinalSurface(points, surface);
-  addNeighbourRelations(points);
+  addNeighbourRelations(points, sourcePoints);
   const output = {
-    version: "0.2.0-viewer-prototype",
+    version: "0.3.0-localization-prototype",
     generatedBy: "scripts/build-acupoint-3d-prototype.mjs",
     source: {
       file: "assets/json/meridians.json",
@@ -1926,7 +2061,7 @@ function build() {
       status: "prototype-estimates-only",
       requiredBeforeLearningUse: [
         "Have a qualified acupuncture/anatomy reviewer approve each projected point anchor.",
-        "Author curated comparison-marker relationships per learning screen.",
+        "Have a qualified reviewer approve source-derived anatomical level, line, and localisation reference relationships.",
       ],
     },
     coordinateSpace: {
@@ -1937,7 +2072,7 @@ function build() {
         y: "positive = superior",
         z: "positive = anterior",
       },
-      anchorMeaning: "Raw route estimates are snapped to the nearest triangle of Skin_Body with its outward interpolated normal. Viewers apply marker.offsetAlongNormal.",
+      anchorMeaning: "Shared torso references intersect Skin_Body along depth while preserving their midline, lateral cun offset and horizontal level. Other route estimates use audited nearest-triangle projection. Viewers apply marker.offsetAlongNormal to the attached skin normal.",
       mirrorPolicy: "Bilateral routes are authored once on asset-left and mirrored across x = 0 to make concrete left/right instances.",
       modelBinding: surface.modelBinding,
     },

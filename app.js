@@ -45,7 +45,14 @@ const modelViewerStatus = document.querySelector("#modelViewerStatus");
 const modelViewerDetail = document.querySelector("#modelViewerDetail");
 const modelViewerTarget = document.querySelector("#modelViewerTarget");
 const modelViewerRetry = document.querySelector("#modelViewerRetry");
+const modelViewerLocalizationContent = document.querySelector("#modelViewerLocalizationContent");
 const modelViewerCloseButton = modelViewerSheet?.querySelector("button[data-close-three-d]");
+const THREE_D_RELATION_KINDS = {
+  horizontal: { label: "같은 높이", color: 0x55cde8, cssColor: "#55cde8" },
+  vertical: { label: "같은 세로선", color: 0xc4a0ff, cssColor: "#c4a0ff" },
+  reference: { label: "취혈 기준혈", color: 0xf4bd5b, cssColor: "#f4bd5b" },
+};
+const threeDEnabledRelationKinds = new Set(Object.keys(THREE_D_RELATION_KINDS));
 
 let data = null;
 let allPoints = [];
@@ -145,8 +152,8 @@ function bindEvents() {
  *   }
  * }
  * A canonical point may expose two left/right instances. The viewer renders
- * every instance in the target or curated comparison entry, so a bilateral
- * point produces two surface markers without inventing duplicate point IDs.
+ * every target instance. Source-defined localisation relationships select
+ * same-side or midline comparison instances without inventing point IDs.
  * A point may include `focus: { distance, mobileDistance, target }`. An anchor
  * may instead use { mesh, triangle, barycentric } to attach a point to an
  * exact triangle on the supplied GLB surface. Rotations are radians.
@@ -215,6 +222,18 @@ function handleThreeDViewerClick(event) {
   const button = event.target.closest("[data-three-d-action]");
   if (!button) return;
 
+  if (button.dataset.threeDAction === "toggle-relations") {
+    const kind = button.dataset.relationKind;
+    if (!THREE_D_RELATION_KINDS[kind]) return;
+    if (threeDEnabledRelationKinds.has(kind)) threeDEnabledRelationKinds.delete(kind);
+    else threeDEnabledRelationKinds.add(kind);
+    if (threeDViewer?.currentDataset && threeDViewerPoint && modelViewerStage.dataset.state === "ready") {
+      const entry = getThreeDPointEntry(threeDViewer.currentDataset, threeDViewerPoint.id);
+      focusThreeDPoint(threeDViewer, threeDViewer.currentDataset, threeDViewerPoint, entry, { preserveCamera: true });
+    }
+    return;
+  }
+
   if (button.dataset.threeDAction === "reset-camera") {
     resetThreeDView();
   }
@@ -237,6 +256,7 @@ async function openThreeDViewer(point, opener = null, options = {}) {
   document.body.classList.add("is-three-d-open");
   modelViewerTitle.textContent = `${point.id} ${point.name} 3D 위치`;
   modelViewerTarget.textContent = `${point.id} ${point.name}의 위치를 표시합니다.`;
+  modelViewerLocalizationContent?.replaceChildren();
   setThreeDViewerState("loading", "3D 인체 모형을 불러오는 중입니다.");
   requestAnimationFrame(() => modelViewerCloseButton?.focus());
 
@@ -616,7 +636,7 @@ function sceneAddLightTargets(scene, ...lights) {
   }
 }
 
-function focusThreeDPoint(viewer, dataset, point, entry) {
+function focusThreeDPoint(viewer, dataset, point, entry, { preserveCamera = false } = {}) {
   const targetAnchors = resolveThreeDEntryAnchors(viewer, entry, dataset);
   if (!targetAnchors.length) throw new Error("3D anchor position is missing");
 
@@ -632,54 +652,62 @@ function focusThreeDPoint(viewer, dataset, point, entry) {
     viewer.markerGroup.add(createThreeDMarker(viewer, targetAnchor.position, markerRadius * 1.14, 0xe63838, markerId));
   }
 
-  const nearbyIds = getNearbyPointIds(dataset, point.id, entry);
-  let nearbyCount = 0;
-  for (const nearbyId of nearbyIds) {
+  const relations = getThreeDLocalizationRelations(dataset, point.id, entry, threeDEnabledRelationKinds);
+  const targetInstances = getThreeDEntryInstances(entry);
+  let comparisonCount = 0;
+  for (const relation of relations) {
+    const nearbyId = relation.pointId;
     const nearbyEntry = getThreeDPointEntry(dataset, nearbyId);
     if (!nearbyEntry) continue;
 
     try {
-      const nearbyAnchors = resolveThreeDEntryAnchors(viewer, nearbyEntry, dataset);
       const nearbyInstances = getThreeDEntryInstances(nearbyEntry);
       const nearbyMarkerRadius = getNearbyMarkerRadius(markerRadius);
-      for (const [index, nearbyAnchor] of nearbyAnchors.entries()) {
-        const markerId = nearbyAnchors.length > 1 ? `${nearbyId}:${index + 1}` : nearbyId;
-        viewer.markerGroup.add(createThreeDMarker(viewer, nearbyAnchor.position, nearbyMarkerRadius, 0x060807, markerId));
+      const kind = relation.kinds.includes("reference") ? "reference" : relation.kinds[0];
+      const style = THREE_D_RELATION_KINDS[kind];
+      for (const index of getThreeDRelationInstanceIndices(nearbyInstances, targetInstances, relation.instancePolicy)) {
+        const nearbyAnchor = resolveThreeDAnchor(viewer, nearbyInstances[index], dataset);
+        const markerId = nearbyInstances[index].instanceId || `${nearbyId}:${index + 1}`;
+        viewer.markerGroup.add(createThreeDMarker(viewer, nearbyAnchor.position, nearbyMarkerRadius, style.color, markerId, true));
         addThreeDNearbyLabel(viewer, {
           id: markerId,
           position: nearbyAnchor.position,
           normal: nearbyAnchor.normal,
-          text: getThreeDNearbyLabelText(nearbyId, nearbyEntry, nearbyInstances[index], nearbyAnchors.length),
+          color: style.cssColor,
+          text: `${getThreeDNearbyLabelText(nearbyId, nearbyEntry, nearbyInstances[index], nearbyInstances.length)} · ${relation.labels.join(" / ")}`,
+          description: relation.descriptions.join("\n"),
         });
-        nearbyCount += 1;
+        comparisonCount += 1;
       }
     } catch (error) {
       console.warn(`Skipping invalid 3D marker: ${nearbyId}`, error);
     }
   }
 
-  const focus = getThreeDFocus(entry);
-  const focusTarget = readThreeDVector3(THREE, focus.target) || anchorCenter;
-  const focusPosition = readThreeDVector3(THREE, focus.cameraPosition || focus.position);
-  camera.fov = getThreeDFocusFov(focus, camera.aspect, viewer.defaultCamera.fov);
-  camera.updateProjectionMatrix();
-  if (focusPosition) {
-    camera.position.copy(focusPosition);
-  } else {
-    const direction = getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal);
-    const requestedDistance = getThreeDFocusDistance(focus, viewer.defaultCamera.focusDistance);
-    const distance = getThreeDExteriorFocusDistance(viewer, focusTarget, direction, requestedDistance);
-    camera.position.copy(focusTarget).addScaledVector(direction, distance);
+  if (!preserveCamera) {
+    const focus = getThreeDFocus(entry);
+    const focusTarget = readThreeDVector3(THREE, focus.target) || anchorCenter;
+    const focusPosition = readThreeDVector3(THREE, focus.cameraPosition || focus.position);
+    camera.fov = getThreeDFocusFov(focus, camera.aspect, viewer.defaultCamera.fov);
+    camera.updateProjectionMatrix();
+    if (focusPosition) {
+      camera.position.copy(focusPosition);
+    } else {
+      const direction = getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal);
+      const requestedDistance = getThreeDFocusDistance(focus, viewer.defaultCamera.focusDistance);
+      const distance = getThreeDExteriorFocusDistance(viewer, focusTarget, direction, requestedDistance);
+      camera.position.copy(focusTarget).addScaledVector(direction, distance);
+    }
+    controls.target.copy(focusTarget);
+    controls.update();
   }
-
-  controls.target.copy(focusTarget);
-  controls.update();
   viewer.currentPointId = point.id;
   viewer.currentDataset = dataset;
   viewer.nearbyLabelLayoutDirty = true;
-  modelViewerTarget.textContent = nearbyCount
-    ? `${point.id} ${point.name} · 주변 ${nearbyCount}혈을 함께 표시합니다.`
+  modelViewerTarget.textContent = comparisonCount
+    ? `${point.id} ${point.name} · 위치 비교 ${relations.length}혈을 함께 표시합니다.`
     : `${point.id} ${point.name}을(를) 빨간 점으로 표시합니다.`;
+  renderThreeDLocalizationDetails(dataset, point, entry);
   renderThreeDFrame();
 }
 
@@ -706,16 +734,9 @@ function getThreeDOutwardDirection(viewer, position) {
 
 function getThreeDExteriorNormal(viewer, position, normal) {
   if (!normal?.isVector3 || normal.lengthSq() <= 0.000001) return null;
-
-  const exteriorNormal = normal.clone().normalize();
-  const outwardDirection = getThreeDOutwardDirection(viewer, position);
-  // A few triangles around the vertex have an inverted winding/normal after
-  // normal smoothing.  Orient a clearly inward normal away from the model
-  // centre before using it for marker offset or camera focus.
-  if (outwardDirection && exteriorNormal.dot(outwardDirection) < -0.18) {
-    exteriorNormal.negate();
-  }
-  return exteriorNormal;
+  // A medial limb surface legitimately faces the body's centre. Its audited
+  // mesh normal, rather than a whole-body radial vector, defines the offset.
+  return normal.clone().normalize();
 }
 
 function getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal) {
@@ -723,17 +744,7 @@ function getThreeDExteriorFocusDirection(viewer, focusTarget, anchorNormal) {
   const outwardDirection = getThreeDOutwardDirection(viewer, focusTarget);
   const surfaceDirection = getThreeDExteriorNormal(viewer, focusTarget, anchorNormal);
 
-  if (!surfaceDirection) return outwardDirection || fallbackDirection;
-  if (!outwardDirection) return surfaceDirection;
-
-  // A tangential surface normal can still leave the initial camera inside the
-  // body envelope. Blend it toward the independently derived outward vector
-  // so every fallback view starts on the exterior side of the model.
-  const alignment = surfaceDirection.dot(outwardDirection);
-  if (alignment >= 0.22) return surfaceDirection;
-
-  const blend = (0.22 - alignment) / (1.22 - alignment);
-  return surfaceDirection.lerp(outwardDirection, blend).normalize();
+  return surfaceDirection || outwardDirection || fallbackDirection;
 }
 
 function getThreeDExteriorFocusDistance(viewer, focusTarget, direction, requestedDistance) {
@@ -771,16 +782,17 @@ function getThreeDEntryInstances(entry) {
 
 function resolveThreeDAnchor(viewer, entry, dataset) {
   const anchor = getThreeDAnchor(entry);
+  const attachment = anchor.surfaceAttachment || anchor;
   const directPosition = readThreeDVector3(viewer.THREE, anchor.position || anchor.worldPosition);
   const directNormal = readThreeDVector3(viewer.THREE, anchor.normal);
   const hasSurfaceAttachment = Boolean(
-    anchor.mesh && Number.isInteger(anchor.triangle) && Array.isArray(anchor.barycentric),
+    attachment.mesh && Number.isInteger(attachment.triangle) && Array.isArray(attachment.barycentric),
   );
 
   // The generated dataset carries both a convenient saved position and a
   // triangle/barycentric surface attachment.  Prefer the attachment whenever
-  // it is available: it keeps every one of the 361 points on the *rendered*
-  // skin after model-normal smoothing, transforms, or a future model update.
+  // it is available: it keeps points on the rendered skin through model
+  // transforms. A change to mesh topology requires regenerated attachments.
   // The saved position remains a backwards-compatible fallback for external
   // data that has not been surface-bound yet.
   if (!hasSurfaceAttachment) {
@@ -792,18 +804,19 @@ function resolveThreeDAnchor(viewer, entry, dataset) {
     };
   }
 
-  const mesh = viewer.model?.getObjectByName(anchor.mesh);
+  const mesh = viewer.model?.getObjectByName(attachment.mesh);
   const positionAttribute = mesh?.geometry?.getAttribute("position");
   if (!mesh?.isMesh || !positionAttribute) {
-    throw new Error(`Anchor mesh is missing: ${anchor.mesh}`);
+    throw new Error(`Anchor mesh is missing: ${attachment.mesh}`);
   }
 
-  const barycentric = anchor.barycentric.map(Number);
-  if (barycentric.length !== 3 || barycentric.some((value) => !Number.isFinite(value))) {
+  const barycentric = attachment.barycentric.map(Number);
+  if (barycentric.length !== 3 || barycentric.some((value) => !Number.isFinite(value) || value < -0.00001 || value > 1.00001)
+    || Math.abs(barycentric.reduce((sum, value) => sum + value, 0) - 1) > 0.00001) {
     throw new Error("Anchor barycentric coordinates are invalid");
   }
 
-  const indices = getThreeDTriangleIndices(mesh.geometry, anchor.triangle);
+  const indices = getThreeDTriangleIndices(mesh.geometry, attachment.triangle);
   if (!indices) throw new Error("Anchor triangle is outside of mesh geometry");
 
   const { THREE } = viewer;
@@ -930,6 +943,8 @@ function addThreeDNearbyLabel(viewer, label) {
   element.className = "three-d-nearby-label";
   element.dataset.markerId = label.id;
   element.textContent = label.text;
+  if (label.color) element.style.setProperty("--relation-color", label.color);
+  element.title = label.description || label.text;
   viewer.nearbyLabelOverlay.append(element);
   viewer.nearbyLabels.push({
     ...label,
@@ -940,12 +955,11 @@ function addThreeDNearbyLabel(viewer, label) {
   viewer.nearbyLabelLayoutDirty = true;
 }
 
-function createThreeDMarker(viewer, position, radius, color, id) {
+function createThreeDMarker(viewer, position, radius, color, id, isComparison = false) {
   const marker = new viewer.THREE.Group();
-  const isNearbyMarker = color === 0x060807;
 
-  if (isNearbyMarker) {
-    const nearbySprite = createNearbyMarkerSprite(viewer, radius);
+  if (isComparison) {
+    const nearbySprite = createNearbyMarkerSprite(viewer, radius, color);
     marker.add(nearbySprite);
   } else {
     const core = new viewer.THREE.Mesh(
@@ -960,7 +974,7 @@ function createThreeDMarker(viewer, position, radius, color, id) {
   return marker;
 }
 
-function createNearbyMarkerSprite(viewer, radius) {
+function createNearbyMarkerSprite(viewer, radius, color) {
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 128;
@@ -970,7 +984,7 @@ function createNearbyMarkerSprite(viewer, radius) {
   context.beginPath();
   context.arc(64, 64, 54, 0, Math.PI * 2);
   context.fill();
-  context.fillStyle = "#060807";
+  context.fillStyle = `#${color.toString(16).padStart(6, "0")}`;
   context.beginPath();
   context.arc(64, 64, 43, 0, Math.PI * 2);
   context.fill();
@@ -989,23 +1003,84 @@ function getThreeDPointEntry(dataset, pointId) {
   return dataset.points?.[pointId] || null;
 }
 
-function getNearbyPointIds(dataset, pointId, entry) {
-  const anchor = getThreeDAnchor(entry);
-  const comparison = dataset.comparisons?.[pointId] || {};
-  const curatedIds = [
-    entry?.nearby,
-    entry?.related,
-    anchor?.nearby,
-    anchor?.related,
-    comparison.nearby,
-    comparison.related,
-    entry?.neighbourRelations?.curatedComparisonDisplay,
-  ].filter(Array.isArray).flat();
-  const learningIds = entry?.neighbourRelations?.learningComparisonDisplay || [];
-  const rawIds = curatedIds.length ? curatedIds : learningIds;
+function getThreeDLocalizationRelations(dataset, pointId, entry, enabledKinds) {
+  const relations = new Map();
+  for (const kind of Object.keys(THREE_D_RELATION_KINDS)) {
+    if (enabledKinds && !enabledKinds.has(kind)) continue;
+    for (const relation of entry?.localization?.[kind] || []) {
+      if (!relation?.pointId || relation.pointId === pointId || !dataset.points?.[relation.pointId]) continue;
+      if (!["same-side", "midline"].includes(relation.instancePolicy)) continue;
+      let combined = relations.get(relation.pointId);
+      if (!combined) {
+        combined = { pointId: relation.pointId, kinds: [], labels: [], descriptions: [], instancePolicy: relation.instancePolicy };
+        relations.set(relation.pointId, combined);
+      }
+      if (!combined.kinds.includes(kind)) combined.kinds.push(kind);
+      if (relation.label && !combined.labels.includes(relation.label)) combined.labels.push(relation.label);
+      if (relation.description && !combined.descriptions.includes(relation.description)) combined.descriptions.push(relation.description);
+    }
+  }
+  return [...relations.values()];
+}
 
-  return [...new Set(rawIds.map((item) => (typeof item === "string" ? item : item?.id || item?.pointId)).filter(Boolean))]
-    .filter((id) => id !== pointId);
+function getThreeDRelationInstanceIndices(instances, targetInstances, policy) {
+  const targetSides = new Set(targetInstances.map((instance) => instance.laterality));
+  return instances.flatMap((instance, index) => {
+    if (policy === "midline") return instance.laterality === "midline" ? [index] : [];
+    if (policy !== "same-side") return [];
+    return targetSides.has("midline") || targetSides.has(instance.laterality) ? [index] : [];
+  });
+}
+
+function renderThreeDLocalizationDetails(dataset, point, entry) {
+  if (!modelViewerLocalizationContent) return;
+  modelViewerLocalizationContent.replaceChildren();
+  const sourceLocation = entry.sourceEvidence?.location || point.location || [];
+  const location = document.createElement("p");
+  location.className = "localization-location";
+  location.textContent = sourceLocation.join(" · ");
+  modelViewerLocalizationContent.append(location);
+
+  for (const [kind, style] of Object.entries(THREE_D_RELATION_KINDS)) {
+    const relations = getThreeDLocalizationRelations(dataset, point.id, entry, new Set([kind]));
+    const toggle = modelViewerSheet.querySelector(`[data-relation-kind="${kind}"]`);
+    toggle.disabled = !relations.length;
+    toggle.setAttribute("aria-pressed", String(threeDEnabledRelationKinds.has(kind)));
+    if (!threeDEnabledRelationKinds.has(kind) || !relations.length) continue;
+
+    const section = document.createElement("section");
+    section.className = "localization-group";
+    section.style.setProperty("--relation-color", style.cssColor);
+    const title = document.createElement("h3");
+    title.textContent = `${style.label} · ${relations.length}혈`;
+    const list = document.createElement("ul");
+    for (const relation of relations) {
+      const item = document.createElement("li");
+      const name = document.createElement("strong");
+      const peer = dataset.points[relation.pointId];
+      name.textContent = `${relation.pointId} ${peer.name || ""} · ${relation.labels.join(" / ")}`;
+      const description = document.createElement("span");
+      description.textContent = relation.descriptions.join(" · ");
+      item.append(name, description);
+      list.append(item);
+    }
+    section.append(title, list);
+    modelViewerLocalizationContent.append(section);
+  }
+
+  const landmarks = (entry.localization?.landmarks || []).filter((text) => !sourceLocation.includes(text));
+  if (landmarks.length) {
+    const description = document.createElement("p");
+    description.className = "localization-landmarks";
+    description.textContent = `해부학적 기준: ${landmarks.join(" · ")}`;
+    modelViewerLocalizationContent.append(description);
+  }
+  if (!getThreeDLocalizationRelations(dataset, point.id, entry).length) {
+    const empty = document.createElement("p");
+    empty.className = "localization-empty";
+    empty.textContent = "원문에서 확인된 비교 혈자리가 없습니다. 위 위치 설명을 기준으로 확인하세요.";
+    modelViewerLocalizationContent.append(empty);
+  }
 }
 
 function clearThreeDMarkers(viewer) {

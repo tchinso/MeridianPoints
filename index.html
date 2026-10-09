@@ -92,8 +92,14 @@
 
         <div class="model-viewer-legend" id="modelViewerLegend" aria-label="점 표시 범례">
           <span><i class="marker-key marker-key-target" aria-hidden="true"></i>현재 혈자리</span>
-          <span><i class="marker-key marker-key-nearby" aria-hidden="true"></i>주변 혈자리</span>
+          <button type="button" data-three-d-action="toggle-relations" data-relation-kind="horizontal" aria-pressed="true"><i class="marker-key marker-key-horizontal" aria-hidden="true"></i>같은 높이</button>
+          <button type="button" data-three-d-action="toggle-relations" data-relation-kind="vertical" aria-pressed="true"><i class="marker-key marker-key-vertical" aria-hidden="true"></i>같은 세로선</button>
+          <button type="button" data-three-d-action="toggle-relations" data-relation-kind="reference" aria-pressed="true"><i class="marker-key marker-key-reference" aria-hidden="true"></i>취혈 기준혈</button>
         </div>
+        <details class="model-viewer-localization" id="modelViewerLocalization" open>
+          <summary>취혈 위치와 비교 기준</summary>
+          <div id="modelViewerLocalizationContent" aria-live="polite"></div>
+        </details>
         <p class="model-viewer-hint" id="modelViewerHint">한 손가락으로 회전 · 두 손가락으로 확대하거나 이동할 수 있습니다.</p>
         <p class="model-viewer-safety-note">3D 위치는 틀릴 수 있습니다. 2D 그림과 원문 텍스트를 우선하세요.</p>
       </section>
