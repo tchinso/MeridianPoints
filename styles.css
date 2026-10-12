@@ -1371,9 +1371,45 @@ body.is-three-d-open {
 }
 
 .model-viewer-localization summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   padding: 9px 0;
   font-weight: 800;
   cursor: pointer;
+  list-style: none;
+}
+
+.model-viewer-localization summary::-webkit-details-marker {
+  display: none;
+}
+
+.model-viewer-localization summary::before {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  transform: rotate(-45deg);
+}
+
+.model-viewer-localization[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.model-viewer-localization summary::after {
+  margin-left: auto;
+  color: #a9c6b8;
+  content: "펼치기";
+}
+
+.model-viewer-localization[open] summary::after {
+  content: "접기";
+}
+
+.model-viewer-localization summary:focus-visible {
+  outline: 2px solid #eef7f2;
+  outline-offset: 2px;
 }
 
 .localization-location,

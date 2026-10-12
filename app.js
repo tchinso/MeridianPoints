@@ -45,6 +45,7 @@ const modelViewerStatus = document.querySelector("#modelViewerStatus");
 const modelViewerDetail = document.querySelector("#modelViewerDetail");
 const modelViewerTarget = document.querySelector("#modelViewerTarget");
 const modelViewerRetry = document.querySelector("#modelViewerRetry");
+const modelViewerLocalization = document.querySelector("#modelViewerLocalization");
 const modelViewerLocalizationContent = document.querySelector("#modelViewerLocalizationContent");
 const modelViewerCloseButton = modelViewerSheet?.querySelector("button[data-close-three-d]");
 const THREE_D_RELATION_KINDS = {
@@ -118,6 +119,7 @@ function bindEvents() {
 
   if (modelViewerSheet) {
     modelViewerSheet.addEventListener("click", handleThreeDViewerClick);
+    modelViewerLocalization?.addEventListener("toggle", resizeThreeDViewer);
   }
 
   searchSheet.addEventListener("click", (event) => {
@@ -256,6 +258,7 @@ async function openThreeDViewer(point, opener = null, options = {}) {
   document.body.classList.add("is-three-d-open");
   modelViewerTitle.textContent = `${point.id} ${point.name} 3D 위치`;
   modelViewerTarget.textContent = `${point.id} ${point.name}의 위치를 표시합니다.`;
+  if (modelViewerLocalization) modelViewerLocalization.open = false;
   modelViewerLocalizationContent?.replaceChildren();
   setThreeDViewerState("loading", "3D 인체 모형을 불러오는 중입니다.");
   requestAnimationFrame(() => modelViewerCloseButton?.focus());
